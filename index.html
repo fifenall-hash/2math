@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 태블릿/모바일 화면 꽉 채움 및 확대/축소/스크롤 방지 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>별빛 우주 덧셈 아케이드</title>
+
+  <!-- PWA & 모바일 웹앱 메타 태그 (GitHub Pages 하위 경로 호환 상대 경로) -->
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="별빛덧셈" />
+  <meta name="description" content="아이들이 오락실 게임처럼 신나게 즐기는 우주 덧셈 디펜스 아케이드 게임" />
+
+  <!-- 아이콘 및 매니페스트 연결 (첨부할 icon.ico, icon.png 상대경로 반영) -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="shortcut icon" href="./icon.ico" type="image/x-icon" />
+  <link rel="icon" href="./icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 어린이 친화적 한글 폰트 (Jua, 고운돋움) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Jua&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      position: fixed;
+      inset: 0;
+      background-color: #090d1e;
+      color: #f8fafc;
+      font-family: 'Jua', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .font-num {
+      font-family: 'Fredoka', 'Jua', sans-serif;
+    }
+
+    /* 전체 앱 컨테이너: 안전 영역(노치/홈바) 반영 및 무스크롤 100dvh 고정 */
+    #app-root {
+      width: 100%;
+      height: 100dvh;
+      padding-top: max(0.35rem, var(--sat));
+      padding-bottom: max(0.35rem, var(--sab));
+      padding-left: max(0.5rem, var(--sal));
+      padding-right: max(0.5rem, var(--sar));
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 55%, #060913 100%);
+    }
+
+    /* 입체 아케이드 버튼 스타일 */
+    .arcade-btn {
+      position: relative;
+      transition: transform 0.06s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.06s ease, filter 0.1s ease;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45), inset 0 2px 1px rgba(255, 255, 255, 0.35);
+    }
+    .arcade-btn:active, .arcade-btn.pressed {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      filter: brightness(1.12);
+    }
+
+    /* 숫자 키패드 버튼 */
+    .num-key {
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+      border: 2px solid #475569;
+      color: #f8fafc;
+      box-shadow: 0 4px 0 #0f172a, inset 0 2px 0 rgba(255, 255, 255, 0.2);
+    }
+    .num-key:active, .num-key.pressed {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #0f172a;
+      background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+      border-color: #93c5fd;
+    }
+
+    /* 10-프레임 구슬(블록) 애니메이션 */
+    .gem-slot {
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+    }
+    .gem-active-a {
+      background: radial-gradient(circle at 30% 30%, #67e8f9, #06b6d4 65%, #0e7490);
+      box-shadow: 0 0 8px rgba(34, 211, 238, 0.7), inset 0 1px 2px #fff;
+      border-color: #a5f3fc !important;
+    }
+    .gem-active-b {
+      background: radial-gradient(circle at 30% 30%, #fde047, #f59e0b 65%, #b45309);
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.75), inset 0 1px 2px #fff;
+      border-color: #fef08a !important;
+    }
+    .gem-active-c {
+      background: radial-gradient(circle at 30% 30%, #6ee7b7, #10b981 65%, #047857);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.75), inset 0 1px 2px #fff;
+      border-color: #a7f3d0 !important;
+    }
+    .gem-bounce {
+      animation: gemPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes gemPop {
+      0% { transform: scale(0.5); }
+      60% { transform: scale(1.22); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes shakeError {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .shake-anim {
+      animation: shakeError 0.38s ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.55); }
+      50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+    }
+    .answer-box-glow {
+      animation: pulseGlow 1.8s infinite;
+    }
+
+    /* 10 완성 시 상자 반짝임 효과 */
+    @keyframes tenCompleteFlash {
+      0%, 100% {
+        box-shadow: 0 0 0px rgba(250, 204, 21, 0);
+        border-color: rgba(34, 211, 238, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(250, 204, 21, 0.95), inset 0 0 10px rgba(250, 204, 21, 0.45);
+        border-color: #fde047;
+      }
+    }
+    .ten-complete-glow {
+      animation: tenCompleteFlash 0.65s ease-in-out 2;
+      border-color: #fde047 !important;
+    }
+
+    /* 날아가는 구슬 클론 스타일 */
+    .flying-gem {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Fredoka', 'Jua', sans-serif;
+      color: #ffffff;
+      font-weight: 700;
+      transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    }
+
+    /* 가로 모드(태블릿/모바일 가로) 대응 레이아웃 */
+    .play-layout {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 0%;
+      min-height: 0;
+      gap: 0.35rem;
+    }
+
+    @media (orientation: landscape) and (min-width: 640px) {
+      .play-layout {
+        flex-direction: row;
+        gap: 0.6rem;
+      }
+      .landscape-left {
+        flex: 1.32 1 0%;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        gap: 0.4rem;
+      }
+      .landscape-right {
+        flex: 0.92 1 0%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-width: 0;
+        min-height: 0;
+        gap: 0.4rem;
+      }
+    }
+
+    /* 스마트폰 가로 모드처럼 높이가 매우 낮은 경우 패딩과 폰트 자동 압축 */
+    @media (max-height: 540px) {
+      .compact-hide {
+        display: none !important;
+      }
+      .eq-text {
+        font-size: 1.35rem !important;
+        line-height: 1.6rem !important;
+      }
+    }
+
+    /* 커스텀 스크롤바(모달 내부 코드 확인용) */
+    .modal-scroll {
+      overflow-y: auto;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-root">
+    <!-- ==================== 상단 HUD 바 ==================== -->
+    <header class="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-lg shrink-0 z-20">
+      <!-- 홈 버튼 & 현재 스테이지 표시 -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <button id="btn-home" type="button" class="arcade-btn flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400" title="단계 선택 화면으로">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5.5v-6h-5v6H4a1 1 0 01-1-1v-9.5z" />
+          </svg>
+        </button>
+
+        <div class="flex flex-col leading-tight">
+          <div class="flex items-center gap-1">
+            <span id="hud-mode-badge" class="px-2 py-0.5 text-[11px] sm:text-xs rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40">1단계 정찰대</span>
+            <span id="hud-wave" class="text-xs sm:text-sm text-amber-300 font-num">WAVE 1</span>
+          </div>
+          <!-- 생명력 (하트) -->
+          <div id="hud-hearts" class="flex items-center gap-0.5 text-xs sm:text-sm mt-0.5" aria-label="남은 생명">
+            <span>❤️</span><span>❤️</span><span>❤️</span><span>❤️</span><span>❤️</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 중앙 점수 & 문제 유형 빠른 전환 버튼 -->
+      <div class="flex items-center gap-1.5 sm:gap-2.5">
+        <button id="btn-qtype-cycle" type="button" class="arcade-btn px-2 sm:px-2.5 py-1 rounded-xl bg-indigo-950/90 border border-indigo-400/60 text-indigo-200 text-[11px] sm:text-xs flex flex-col items-center leading-tight" title="클릭하여 문제 유형 바꾸기">
+          <span class="text-[9px] text-indigo-300/80">문제 유형 전환</span>
+          <span id="qtype-label" class="text-cyan-300 font-bold">일반 덧셈 (A+B=?)</span>
+        </button>
+
+        <div class="text-center bg-slate-800/90 px-2.5 py-1 rounded-xl border border-slate-700">
+          <div class="text-[10px] text-slate-400 leading-none">점수 / 최고</div>
+          <div class="text-sm sm:text-base font-num text-white leading-tight">
+            <span id="hud-score" class="text-amber-300">0</span>
+            <span class="text-slate-500 text-xs">/</span>
+            <span id="hud-best" class="text-cyan-300 text-xs">0</span>
+          </div>
+        </div>
+
+        <div id="hud-combo-box" class="hidden md:flex flex-col items-center justify-center px-2.5 py-1 rounded-xl bg-fuchsia-950/80 border border-fuchsia-500/50">
+          <span class="text-[10px] text-fuchsia-300 leading-none">COMBO</span>
+          <span id="hud-combo" class="text-sm font-num text-fuchsia-200 leading-tight">0🔥</span>
+        </div>
+      </div>
+
+      <!-- 우측 컨트롤: 여유모드(타이머), 사운드, PWA 안내 -->
+      <div class="flex items-center gap-1 sm:gap-1.5">
+        <button id="btn-timer-toggle" type="button" class="arcade-btn px-2 sm:px-2.5 h-9 sm:h-10 rounded-xl text-xs sm:text-sm flex items-center gap-1 bg-emerald-700/90 border border-emerald-400/60 text-emerald-100" title="시간 제한 켜기/끄기">
+          <span id="timer-icon">🐢</span>
+          <span id="timer-label" class="hidden lg:inline">여유모드</span>
+        </button>
+
+        <button id="btn-sound-toggle" type="button" class="arcade-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-slate-800 border border-slate-600 text-amber-300 text-base sm:text-lg" title="효과음 켜기/끄기">
+          🔊
+        </button>
+
+        <button id="btn-pwa-info" type="button" class="arcade-btn w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-slate-800 border border-slate-600 text-cyan-300 text-sm sm:text-base" title="앱 설치 및 PWA 파일 받기">
+          📲
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== 메인 플레이 화면 (무스크롤 적응형) ==================== -->
+    <main class="play-layout mt-1 flex-1 min-h-0">
+      <!-- 좌측 영역 (세로모드에선 상단 영역): 우주 아케이드 캔버스 + 덧셈 문제 & 분리형 구슬 교구 -->
+      <section class="landscape-left flex flex-col flex-1 min-h-0 gap-1.5">
+        
+        <!-- 1. 우주 배틀 아케이드 캔버스 영역 -->
+        <div id="canvas-wrapper" class="relative flex-1 min-h-[96px] sm:min-h-[115px] rounded-2xl overflow-hidden border-2 border-indigo-500/50 bg-slate-950 shadow-inner">
+          <canvas id="battle-canvas" class="w-full h-full block"></canvas>
+
+          <!-- 몬스터 정보 & 체력바 오버레이 -->
+          <div class="absolute top-2 right-2.5 left-2.5 flex items-center justify-between pointer-events-none">
+            <!-- 플레이어 우주선 상태 -->
+            <div class="flex items-center gap-1.5 bg-slate-900/80 backdrop-blur-sm px-2.5 py-1 rounded-xl border border-cyan-500/40">
+              <span class="text-sm sm:text-base">🚀</span>
+              <span id="ship-rank-text" class="text-xs sm:text-sm text-cyan-200">별빛 수호호</span>
+              <span id="mobile-combo-badge" class="md:hidden ml-1 px-1.5 py-0.5 text-[10px] rounded-md bg-fuchsia-600/80 text-white font-num">0🔥</span>
+            </div>
+
+            <!-- 외계 몬스터 체력바 -->
+            <div class="flex flex-col items-end bg-slate-900/85 backdrop-blur-sm px-2.5 py-1 rounded-xl border border-rose-500/50 min-w-[130px] sm:min-w-[165px]">
+              <div class="flex items-center justify-between w-full text-xs sm:text-sm gap-2">
+                <span id="monster-name" class="text-rose-200 truncate">젤리 외계인</span>
+                <span id="monster-hp-text" class="font-num text-amber-300">HP 1/1</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mt-1 border border-slate-700">
+                <div id="monster-hp-bar" class="h-full bg-gradient-to-r from-rose-500 via-orange-400 to-amber-300 transition-all duration-300" style="width: 100%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 스릴모드(타이머 ON)일 때만 표시되는 상단 에너지 타이머 바 -->
+          <div id="timer-bar-wrap" class="hidden absolute bottom-0 inset-x-0 h-2 bg-slate-900/90">
+            <div id="timer-bar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-all duration-100" style="width: 100%"></div>
+          </div>
+
+          <!-- 정답/격려 토스트 배너 -->
+          <div id="feedback-banner" class="pointer-events-none opacity-0 transition-all duration-200 transform scale-90 absolute inset-x-3 bottom-2 flex justify-center">
+            <div id="feedback-text" class="px-3.5 py-1 rounded-full text-xs sm:text-sm bg-slate-900/95 border-2 border-amber-400 text-amber-200 shadow-lg text-center">
+              각 상자의 구슬을 세어 보고 숫자를 눌러 봐요!
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. 덧셈 수식 카드 & 분리형 구슬 상자 + 정답 후 합쳐지는 원리 애니메이션 영역 -->
+        <div id="problem-card" class="shrink-0 rounded-2xl bg-slate-900/95 border-2 border-indigo-400/50 px-2.5 sm:px-3 py-2 shadow-lg flex flex-col gap-1.5">
+          <!-- 상단 수식 표시줄 -->
+          <div class="flex items-center justify-between gap-1.5">
+            <!-- 힌트(구슬 세기) 버튼 -->
+            <button id="btn-count-helper" type="button" class="arcade-btn px-2 sm:px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/60 text-amber-200 text-xs sm:text-sm flex items-center gap-1 shrink-0">
+              <span>💡</span>
+              <span>구슬 세기</span>
+            </button>
+
+            <!-- 동적 수식 컨테이너: 일반(A + B = ?) 및 등식(3 + 5 = 2 + ?) 모두 표현 -->
+            <div id="equation-container" class="flex items-center justify-center flex-wrap gap-1 sm:gap-2 eq-text text-xl sm:text-3xl font-num tracking-wide">
+              <!-- JS에서 문제 유형에 맞게 렌더링 -->
+            </div>
+
+            <!-- 구슬 보이기/숨기기 토글 또는 애니메이션 중 다음 문제 스킵 버튼 -->
+            <div class="flex items-center gap-1 shrink-0">
+              <button id="btn-replay-anim" type="button" class="hidden arcade-btn px-2 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 border border-cyan-300 text-white font-bold text-xs sm:text-sm flex items-center gap-1 shadow" title="합치기 애니메이션 처음부터 다시 보기">
+                <span>🔄</span>
+                <span class="hidden sm:inline">다시 보기</span>
+              </button>
+              <button id="btn-skip-anim" type="button" class="hidden arcade-btn px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 border-2 border-yellow-200 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-1 shadow-lg animate-bounce">
+                <span>다음 문제</span>
+                <span>▶</span>
+              </button>
+              <button id="btn-toggle-visual" type="button" class="arcade-btn px-2 sm:px-2.5 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-400/50 text-indigo-200 text-xs sm:text-sm">
+                구슬 ON
+              </button>
+            </div>
+          </div>
+
+          <!-- 시각적 구슬 교구 (문제 풀이 중에는 두 숫자가 완전히 분리된 상자에 표시 / 정답 후 합쳐지는 애니메이션 반복 실행) -->
+          <div id="visual-aid-container" class="flex flex-col gap-1.5 pt-1 border-t border-slate-800">
+            <!-- 원리 설명 상태 줄 -->
+            <div class="flex items-center justify-between text-[11px] sm:text-xs px-1.5 py-0.5 rounded-lg bg-slate-950/70 border border-slate-800">
+              <span id="ten-make-tip" class="text-cyan-300 truncate">
+                💡 정답을 맞히면 구슬이 합쳐지며 왜 답인지 반복해서 보여줘요!
+              </span>
+              <span id="merge-step-badge" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-bold text-[10px] sm:text-xs shrink-0 ml-1">
+                🔁 합치기 원리 무한 반복 중
+              </span>
+            </div>
+
+            <!-- [모드 A] 일반 덧셈 (A + B = ?): 첫째 수 상자(A)와 둘째 수 상자(B)가 + 기호를 사이에 두고 각각 분리됨 -->
+            <div id="standard-visual-board" class="flex items-center justify-between gap-1.5 sm:gap-2.5">
+              <!-- 왼쪽 상자: 첫째 수 A (10칸 트레이) -->
+              <div id="box-std-a" class="flex-1 bg-slate-950/95 p-1.5 rounded-xl border-2 border-cyan-500/50 transition-all duration-300 relative">
+                <div class="text-[10px] sm:text-xs text-cyan-300 mb-1 flex justify-between items-center px-0.5 font-num">
+                  <span id="box-std-a-title">첫째 수 상자</span>
+                  <span id="box-std-a-count" class="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-200">3개</span>
+                </div>
+                <div id="grid-std-a" class="grid grid-cols-5 gap-1 sm:gap-1.5"></div>
+              </div>
+
+              <!-- 가운데 + 기호 / 합치기 화살표 -->
+              <div class="flex flex-col items-center justify-center shrink-0 px-0.5">
+                <div id="std-mid-symbol" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-base sm:text-lg font-num text-amber-300 shadow">
+                  +
+                </div>
+                <span id="std-mid-label" class="text-[10px] text-slate-400 mt-0.5">따로 세기</span>
+              </div>
+
+              <!-- 오른쪽 상자: 둘째 수 B (10칸 트레이 - 문제 풀이 시 B개만 따로 들어있음!) -->
+              <div id="box-std-b" class="flex-1 bg-slate-950/95 p-1.5 rounded-xl border-2 border-amber-500/50 transition-all duration-300 relative">
+                <div class="text-[10px] sm:text-xs text-amber-300 mb-1 flex justify-between items-center px-0.5 font-num">
+                  <span id="box-std-b-title">둘째 수 상자</span>
+                  <span id="box-std-b-count" class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-200">5개</span>
+                </div>
+                <div id="grid-std-b" class="grid grid-cols-5 gap-1 sm:gap-1.5"></div>
+              </div>
+            </div>
+
+            <!-- [모드 B] 등식 비교 퍼즐 (3 + 5 = 2 + ?): 왼쪽 묶음과 오른쪽 묶음을 양팔저울처럼 분리하여 비교 -->
+            <div id="balance-visual-board" class="hidden flex items-stretch justify-between gap-1.5 sm:gap-2">
+              <!-- 왼쪽 식 구슬 상자 (A 와 B 가 분리되어 있다가 정답 시 합쳐짐) -->
+              <div id="bal-left-card" class="flex-1 bg-slate-950/95 p-1.5 rounded-xl border-2 border-cyan-500/50 flex flex-col justify-between transition-all duration-300">
+                <div class="flex items-center justify-between text-[10px] sm:text-xs text-cyan-300 px-0.5 mb-1 font-num">
+                  <span id="bal-left-title">왼쪽: 3 과 5</span>
+                  <span id="bal-left-sum-badge" class="px-1.5 rounded bg-slate-800 text-slate-300">각각 세어봐요</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <div class="flex-1 bg-slate-900/90 p-1 rounded-lg border border-cyan-500/30">
+                    <div id="bal-a-label" class="text-[9px] text-cyan-300 text-center mb-0.5 font-num">3개</div>
+                    <div id="grid-bal-a" class="grid grid-cols-5 gap-0.5 sm:gap-1"></div>
+                  </div>
+                  <span id="bal-left-plus" class="text-xs font-num text-amber-300 font-bold shrink-0">+</span>
+                  <div class="flex-1 bg-slate-900/90 p-1 rounded-lg border border-amber-500/30">
+                    <div id="bal-b-label" class="text-[9px] text-amber-300 text-center mb-0.5 font-num">5개</div>
+                    <div id="grid-bal-b" class="grid grid-cols-5 gap-0.5 sm:gap-1"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 가운데 양팔저울 등호(=) 표시 -->
+              <div class="flex flex-col items-center justify-center shrink-0 px-0.5">
+                <div id="bal-equal-icon" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-950 border-2 border-indigo-400 flex items-center justify-center text-sm sm:text-base font-num text-white shadow">
+                  ⚖️
+                </div>
+                <span id="bal-equal-text" class="text-[10px] text-indigo-300 mt-0.5 font-bold">같게!</span>
+              </div>
+
+              <!-- 오른쪽 식 구슬 상자 (알려진 수 C 와 미지수 ? 상자가 분리되어 있다가 정답 시 ? 구슬이 나타나 합쳐짐) -->
+              <div id="bal-right-card" class="flex-1 bg-slate-950/95 p-1.5 rounded-xl border-2 border-fuchsia-500/50 flex flex-col justify-between transition-all duration-300">
+                <div class="flex items-center justify-between text-[10px] sm:text-xs text-fuchsia-300 px-0.5 mb-1 font-num">
+                  <span id="bal-right-title">오른쪽: 2 와 ?</span>
+                  <span id="bal-right-sum-badge" class="px-1.5 rounded bg-slate-800 text-slate-300">얼마가 필요할까?</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <div class="flex-1 bg-slate-900/90 p-1 rounded-lg border border-emerald-500/30">
+                    <div id="bal-c-label" class="text-[9px] text-emerald-300 text-center mb-0.5 font-num">2개</div>
+                    <div id="grid-bal-c" class="grid grid-cols-5 gap-0.5 sm:gap-1"></div>
+                  </div>
+                  <span id="bal-right-plus" class="text-xs font-num text-amber-300 font-bold shrink-0">+</span>
+                  <div id="bal-mystery-box" class="flex-1 bg-indigo-950/80 p-1 rounded-lg border border-dashed border-sky-400 flex flex-col justify-between relative">
+                    <div id="bal-d-label" class="text-[9px] text-sky-300 text-center mb-0.5 font-num">? 개</div>
+                    <div id="grid-bal-d" class="grid grid-cols-5 gap-0.5 sm:gap-1"></div>
+                    <!-- 정답 맞히기 전 물음표 가림막 -->
+                    <div id="bal-mystery-cover" class="absolute inset-0 bg-indigo-950/90 rounded-lg flex flex-col items-center justify-center text-sky-300">
+                      <span class="text-base sm:text-lg font-num font-bold leading-none">?</span>
+                      <span class="text-[9px] text-sky-200/80">몇 개일까?</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 우측 영역 (세로모드에선 하단 영역): 아케이드 숫자 키패드 + 정답 시 [다음 문제] 수동 전환 패널 -->
+      <section class="landscape-right shrink-0 flex flex-col justify-end">
+        <div class="relative bg-slate-900/95 border-2 border-slate-700/90 rounded-2xl p-2 sm:p-2.5 shadow-xl flex flex-col gap-1.5 h-full justify-between overflow-hidden">
+          <!-- 상단 보조 바: 자동발사 스위치 & 힌트 메시지 -->
+          <div class="flex items-center justify-between px-1">
+            <span class="text-xs sm:text-sm text-slate-300 flex items-center gap-1">
+              <span>🎮</span>
+              <span>숫자 레이저 패드</span>
+            </span>
+
+            <button id="btn-autofire" type="button" class="arcade-btn px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-cyan-600/30 border border-cyan-400 text-cyan-200 flex items-center gap-1.5">
+              <span id="autofire-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span id="autofire-text">자동 발사 ON</span>
+            </button>
+          </div>
+
+          <!-- 숫자 패드 그리드 (1~9, 지우기, 0, 발사) -->
+          <div class="grid grid-cols-4 gap-1.5 sm:gap-2 flex-1 min-h-[148px] sm:min-h-[180px]">
+            <button type="button" data-num="1" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">1</button>
+            <button type="button" data-num="2" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">2</button>
+            <button type="button" data-num="3" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">3</button>
+            <button type="button" id="btn-clear" class="arcade-btn rounded-xl text-sm sm:text-base bg-rose-700 hover:bg-rose-600 border-2 border-rose-400 text-white flex flex-col items-center justify-center leading-tight">
+              <span>⬅️</span>
+              <span>지우기</span>
+            </button>
+
+            <button type="button" data-num="4" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">4</button>
+            <button type="button" data-num="5" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">5</button>
+            <button type="button" data-num="6" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">6</button>
+            <button type="button" data-num="0" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center bg-slate-800">0</button>
+
+            <button type="button" data-num="7" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">7</button>
+            <button type="button" data-num="8" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">8</button>
+            <button type="button" data-num="9" class="num-key rounded-xl text-xl sm:text-2xl font-num flex items-center justify-center">9</button>
+            <button type="button" id="btn-fire" class="arcade-btn rounded-xl text-base sm:text-lg bg-gradient-to-b from-amber-400 to-orange-600 border-2 border-yellow-200 text-slate-950 font-bold flex flex-col items-center justify-center leading-tight shadow-lg">
+              <span class="text-lg sm:text-xl">🚀</span>
+              <span>발사!</span>
+            </button>
+          </div>
+
+          <!-- ★ 정답을 맞힌 후 나타나는 수동 [다음 문제 ▶] 컨트롤 오버레이 (버튼을 누르기 전까지 합치기 원리 애니메이션 무한 반복) -->
+          <div id="next-question-overlay" class="hidden absolute inset-0 z-20 bg-slate-950/92 backdrop-blur-sm p-3 flex flex-col items-center justify-between text-center rounded-2xl border-2 border-emerald-400">
+            <div class="flex flex-col items-center gap-1 mt-1">
+              <span class="px-3 py-0.5 rounded-full bg-amber-400/20 border border-amber-300 text-amber-200 text-xs sm:text-sm">
+                🔁 위쪽 구슬 상자에서 합치기 원리가 반복 재생 중이에요!
+              </span>
+              <h3 id="next-panel-title" class="text-lg sm:text-2xl text-white font-num mt-0.5">
+                정답이에요! 왜 답이 되는지 구슬을 확인해 봐요 ✨
+              </h3>
+              <p id="next-panel-desc" class="text-xs sm:text-sm text-cyan-200">
+                충분히 이해했다면 아래 [다음 문제 ▶] 버튼을 눌러 주세요!
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2 w-full mt-2">
+              <button id="btn-panel-replay" type="button" class="arcade-btn px-3 sm:px-4 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-cyan-400 text-cyan-200 text-xs sm:text-base flex flex-col items-center justify-center shrink-0">
+                <span>🔄 처음부터</span>
+                <span>다시 보기</span>
+              </button>
+              <button id="btn-panel-next" type="button" class="arcade-btn flex-1 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:brightness-110 border-2 border-yellow-200 text-slate-950 font-bold text-lg sm:text-2xl flex items-center justify-center gap-2 shadow-xl">
+                <span>다음 문제로 출발!</span>
+                <span class="text-xl sm:text-2xl">▶</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==================== 시작 및 단계 선택 오버레이 모달 ==================== -->
+    <div id="start-overlay" class="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-3.5 sm:p-6 overflow-hidden">
+      <!-- 상단 타이틀 영역 -->
+      <div class="w-full max-w-4xl flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <!-- 첨부될 icon.png 미리보기/반영 (로드 실패 시 귀여운 우주선 SVG 대체) -->
+          <img src="./icon.png" alt="앱 아이콘" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border-2 border-cyan-400 shadow-md object-cover bg-indigo-950" onerror="this.style.display='none'; document.getElementById('fallback-logo').style.display='flex';" />
+          <div id="fallback-logo" style="display:none" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl border-2 border-cyan-400 bg-indigo-900 items-center justify-center text-2xl">🚀</div>
+          <div>
+            <span class="text-xs text-cyan-300 block">분리형 구슬 & 합치기 애니메이션 탑재</span>
+            <h1 class="text-lg sm:text-2xl text-white tracking-wide">별빛 우주 덧셈 아케이드</h1>
+          </div>
+        </div>
+
+        <!-- 홈 화면 설치 버튼 (PWA 설치 가능 시 활성화) -->
+        <div class="flex items-center gap-2">
+          <button id="btn-install-app" type="button" class="arcade-btn px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 border border-cyan-300 text-white text-xs sm:text-sm flex items-center gap-1.5 shadow-lg">
+            <span>📲</span>
+            <span>앱 설치 / PWA</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 중앙 스테이지(난이도) 선택 카드 4종 -->
+      <div class="w-full max-w-4xl my-auto py-1">
+        <p class="text-center text-amber-300 text-xs sm:text-base mb-2">출격할 우주 덧셈 임무를 선택해 주세요!</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+          <!-- 1단계 -->
+          <button type="button" data-stage="1" class="stage-select-btn arcade-btn text-left p-3 rounded-2xl bg-gradient-to-b from-cyan-900/90 to-slate-900 border-2 border-cyan-400 hover:border-cyan-200 flex sm:flex-col items-center sm:items-start gap-2.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-2xl shrink-0">
+              🛸
+            </div>
+            <div class="flex-1 w-full">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-full text-[11px] bg-cyan-400 text-slate-950 font-bold">1단계 · 기초</span>
+                <span class="text-xs text-cyan-300 font-num">3 + 4 = ?</span>
+              </div>
+              <h2 class="text-base sm:text-lg text-white mt-1">우주 정찰대</h2>
+              <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">따로 놓인 두 구슬 상자를 보고 10 이하의 덧셈을 익혀요!</p>
+            </div>
+          </button>
+
+          <!-- 2단계 -->
+          <button type="button" data-stage="2" class="stage-select-btn arcade-btn text-left p-3 rounded-2xl bg-gradient-to-b from-amber-900/90 to-slate-900 border-2 border-amber-400 hover:border-amber-200 flex sm:flex-col items-center sm:items-start gap-2.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-2xl shrink-0">
+              🪐
+            </div>
+            <div class="flex-1 w-full">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-full text-[11px] bg-amber-400 text-slate-950 font-bold">2단계 · 받아올림</span>
+                <span class="text-xs text-amber-300 font-num">7 + 5 = ?</span>
+              </div>
+              <h2 class="text-base sm:text-lg text-white mt-1">10 만들기 수호대</h2>
+              <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">구슬이 날아가 10을 먼저 채우는 받아올림 원리를 눈으로 확인해요!</p>
+            </div>
+          </button>
+
+          <!-- 3단계: 3 + 5 = 2 + ? 등식 비교 퍼즐 -->
+          <button type="button" data-stage="3" class="stage-select-btn arcade-btn text-left p-3 rounded-2xl bg-gradient-to-b from-emerald-900/90 to-slate-900 border-2 border-emerald-400 hover:border-emerald-200 flex sm:flex-col items-center sm:items-start gap-2.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-2xl shrink-0">
+              ⚖️
+            </div>
+            <div class="flex-1 w-full">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-full text-[11px] bg-emerald-400 text-slate-950 font-bold">3단계 · 등식퍼즐</span>
+                <span class="text-xs text-emerald-300 font-num">3+5 = 2+?</span>
+              </div>
+              <h2 class="text-base sm:text-lg text-white mt-1">쌍둥이 별 저울</h2>
+              <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">양쪽의 합이 똑같아지도록 물음표(?) 속 숨은 숫자를 찾아봐요!</p>
+            </div>
+          </button>
+
+          <!-- 4단계: 종합 아케이드 -->
+          <button type="button" data-stage="4" class="stage-select-btn arcade-btn text-left p-3 rounded-2xl bg-gradient-to-b from-fuchsia-900/90 to-slate-900 border-2 border-fuchsia-400 hover:border-fuchsia-200 flex sm:flex-col items-center sm:items-start gap-2.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-400/50 flex items-center justify-center text-2xl shrink-0">
+              👾
+            </div>
+            <div class="flex-1 w-full">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-full text-[11px] bg-fuchsia-400 text-slate-950 font-bold">4단계 · 올스타</span>
+                <span class="text-xs text-fuchsia-300 font-num">종합 보스전</span>
+              </div>
+              <h2 class="text-base sm:text-lg text-white mt-1">은하계 영웅</h2>
+              <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">일반 덧셈과 3+5=2+? 등식 퍼즐이 모두 등장하는 무제한 모드!</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 하단 학습 도우미 요약 -->
+      <div class="w-full max-w-4xl flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-t border-slate-800 pt-2">
+        <span>✨ 문제 풀이 중엔 두 숫자의 구슬이 따로 분리되어 있고, 정답을 맞히면 구슬이 날아가 합쳐지는 과정을 보여줍니다!</span>
+        <button id="btn-open-pwa-files" type="button" class="text-cyan-300 underline hover:text-cyan-200">
+          📦 GitHub 배포용 manifest.json & sw.js 코드/다운로드
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== 스테이지 클리어 / 게임 결과 모달 ==================== -->
+    <div id="result-modal" class="hidden absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div class="w-full max-w-md rounded-3xl bg-slate-900 border-2 border-amber-400 p-5 text-center shadow-2xl flex flex-col items-center gap-3">
+        <div id="result-emoji" class="text-5xl">🏆</div>
+        <h2 id="result-title" class="text-2xl sm:text-3xl text-amber-300">우주 평화 수호 성공!</h2>
+        <p id="result-desc" class="text-sm text-slate-300">대단해요! 덧셈 레이저로 외계 악당들을 물리쳤어요!</p>
+
+        <div class="w-full grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800 my-1">
+          <div>
+            <div class="text-xs text-slate-400">획득 점수</div>
+            <div id="result-score" class="text-xl font-num text-amber-300">0</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-400">최고 콤보</div>
+            <div id="result-combo" class="text-xl font-num text-fuchsia-300">0</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-400">맞힌 문제</div>
+            <div id="result-solved" class="text-xl font-num text-cyan-300">0개</div>
+          </div>
+        </div>
+
+        <div class="flex gap-2.5 w-full mt-1">
+          <button id="btn-result-home" type="button" class="arcade-btn flex-1 py-3 rounded-xl bg-slate-700 text-white border border-slate-500 text-base">
+            단계 선택
+          </button>
+          <button id="btn-result-retry" type="button" class="arcade-btn flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 border border-yellow-200 text-base font-bold">
+            다시 출격! 🚀
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PWA 설치 & manifest.json / sw.js 다운로드 모달 ==================== -->
+    <div id="pwa-modal" class="hidden absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
+      <div class="w-full max-w-2xl max-h-[90dvh] rounded-3xl bg-slate-900 border-2 border-cyan-400 p-4 sm:p-5 flex flex-col gap-3 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">📲</span>
+            <div>
+              <h3 class="text-lg sm:text-xl text-white">앱 설치 & GitHub Pages PWA 파일</h3>
+              <p class="text-xs text-slate-400">코드 업데이트가 즉시 반영되는 Network-First 서비스워커 적용</p>
+            </div>
+          </div>
+          <button id="btn-close-pwa-modal" type="button" class="arcade-btn w-9 h-9 rounded-xl bg-slate-800 border border-slate-600 text-slate-300">✕</button>
+        </div>
+
+        <div class="modal-scroll flex-1 space-y-3 pr-1 text-xs sm:text-sm text-slate-200">
+          <!-- 1. 현재 기기에서 바로 앱으로 설치하기 안내 -->
+          <div class="p-3 rounded-2xl bg-indigo-950/70 border border-indigo-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+              <div class="text-cyan-300 font-bold">① 태블릿 / 스마트폰 홈 화면에 앱 설치하기</div>
+              <p id="install-status-text" class="text-xs text-slate-300 mt-0.5">
+                안드로이드/크롬은 우측 [앱 바로 설치] 버튼을 누르거나, 아이폰/아이패드(Safari)는 [공유 ⬆️] → [홈 화면에 추가]를 눌러 전체화면 앱으로 실행하세요.
+              </p>
+            </div>
+            <button id="btn-trigger-install" type="button" class="arcade-btn shrink-0 px-3.5 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs sm:text-sm">
+              📲 앱 바로 설치
+            </button>
+          </div>
+
+          <!-- 2. GitHub 저장소 파일 구성 안내 -->
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+            <div class="text-amber-300 font-bold mb-1">② GitHub 무료 홈페이지 저장소 파일 구성 (총 5개 파일)</div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              깃허브 저장소(Repository) 루트 폴더에 아래 파일들을 함께 업로드하면 아이콘과 앱 설치, 자동 업데이트가 완벽히 작동합니다:
+              <code class="text-cyan-300">index.html</code>, <code class="text-cyan-300">manifest.json</code>, <code class="text-cyan-300">sw.js</code>, <code class="text-amber-300">icon.ico</code>, <code class="text-amber-300">icon.png</code>
+            </p>
+          </div>
+
+          <!-- 3. manifest.json 다운로드 및 복사 -->
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-emerald-300 font-bold font-num">📄 manifest.json</span>
+              <div class="flex gap-1.5">
+                <button type="button" id="btn-copy-manifest" class="arcade-btn px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-600 text-xs text-cyan-200">코드 복사</button>
+                <button type="button" id="btn-dl-manifest" class="arcade-btn px-2.5 py-1 rounded-lg bg-emerald-600 text-xs text-white">파일 다운로드</button>
+              </div>
+            </div>
+            <pre id="code-manifest" class="p-2.5 rounded-xl bg-slate-900 text-[11px] text-slate-300 overflow-x-auto font-mono leading-relaxed select-all"></pre>
+          </div>
+
+          <!-- 4. sw.js 다운로드 및 복사 (업데이트 방해 없는 Network-First 전략) -->
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-amber-300 font-bold font-num">⚙️ sw.js (코드 수정 즉시 반영 + 오프라인 폴백)</span>
+              <div class="flex gap-1.5">
+                <button type="button" id="btn-copy-sw" class="arcade-btn px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-600 text-xs text-cyan-200">코드 복사</button>
+                <button type="button" id="btn-dl-sw" class="arcade-btn px-2.5 py-1 rounded-lg bg-amber-600 text-xs text-white">파일 다운로드</button>
+              </div>
+            </div>
+            <pre id="code-sw" class="p-2.5 rounded-xl bg-slate-900 text-[11px] text-slate-300 overflow-x-auto font-mono leading-relaxed select-all"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 게임 로직 & 오디오 & PWA 스크립트 ==================== -->
+  <script>
+    /*************************************************************************
+     * 1. PWA 배포용 manifest.json & sw.js 원본 템플릿 (아이콘 반영 & 즉시 업데이트 보장)
+     *************************************************************************/
+    const MANIFEST_JSON_CONTENT = `{
+  "name": "별빛 우주 덧셈 아케이드",
+  "short_name": "별빛덧셈",
+  "description": "어린이들이 아케이드 게임처럼 즐겁게 배우는 우주 덧셈 놀이",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#090d1e",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}`;
+
+    const SW_JS_CONTENT = `// 별빛 우주 덧셈 아케이드 - 코드 업데이트 반영에 방해되지 않는 Network-First 서비스 워커
+const CACHE_NAME = 'star-math-arcade-v1';
+const ASSETS = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icon.png',
+  './icon.ico'
+];
+
+// 설치 시 대기 없이 즉시 활성화 (skipWaiting)
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
+  );
+});
+
+// 활성화 시 이전 캐시 정리 및 열린 탭 즉시 제어 (clients.claim)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => (key !== CACHE_NAME ? caches.delete(key) : Promise.resolve()))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+
+// 요청 가로채기: 항상 최신 서버 파일(GitHub Pages 수정본)을 먼저 가져오고(cache: 'no-store'),
+// 인터넷이 끊긴 오프라인 상태일 때만 캐시를 반환하여 코드 업데이트 방해 요소를 완전히 제거함
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  event.respondWith(
+    fetch(event.request, { cache: 'no-store' })
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && event.request.url.startsWith(self.location.origin)) {
+          const cloned = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});`;
+
+    // 서비스 워커 등록 (updateViaCache: 'none' 및 controllerchange 리로드 적용)
+    (function registerPWA() {
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('./sw.js', { updateViaCache: 'none' })
+            .then((reg) => {
+              // 페이지 접속 시 최신 sw.js 확인
+              reg.update().catch(() => {});
+            })
+            .catch(() => {
+              // 미리보기 환경이거나 sw.js 업로드 전일 때 조용히 무시
+            });
+
+          let refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+              refreshing = true;
+              window.location.reload();
+            }
+          });
+        });
+      }
+    })();
+
+    /*************************************************************************
+     * 2. Web Audio API 레트로 아케이드 사운드 엔진 (외부 오디오 파일 불필요)
+     *************************************************************************/
+    class ArcadeSound {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        // 도레미파솔라시도 음계 주파수 (구슬 세기용)
+        this.scaleFreqs = [
+          261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88,
+          523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77,
+          1046.50, 1174.66, 1318.51, 1396.91, 1567.98, 1760.00
+        ];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, type = 'sine', duration = 0.12, vol = 0.15, slideFreq = null) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideFreq) {
+          osc.frequency.exponentialRampToValueAtTime(slideFreq, now + duration);
+        }
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      tapKey(num) {
+        this.playTone(360 + num * 28, 'triangle', 0.08, 0.14);
+      }
+
+      countGem(index) {
+        const freq = this.scaleFreqs[index % this.scaleFreqs.length];
+        this.playTone(freq, 'sine', 0.16, 0.2);
+      }
+
+      laserFire() {
+        this.playTone(880, 'sawtooth', 0.18, 0.14, 180);
+      }
+
+      correctHit(isBossKill = false) {
+        this.laserFire();
+        setTimeout(() => this.playTone(523.25, 'triangle', 0.11, 0.18), 70);
+        setTimeout(() => this.playTone(659.25, 'triangle', 0.11, 0.18), 140);
+        setTimeout(() => this.playTone(783.99, 'triangle', 0.16, 0.2), 210);
+        if (isBossKill) {
+          setTimeout(() => this.playTone(1046.5, 'square', 0.28, 0.18), 290);
+        }
+      }
+
+      wrongHint() {
+        this.playTone(250, 'sine', 0.14, 0.15, 190);
+        setTimeout(() => this.playTone(210, 'sine', 0.18, 0.15, 165), 120);
+      }
+
+      stageClear() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          setTimeout(() => this.playTone(n, 'triangle', 0.2, 0.2), idx * 110);
+        });
+      }
+    }
+
+    const sound = new ArcadeSound();
+
+    /*************************************************************************
+     * 3. 게임 상태 및 몬스터 데이터
+     *************************************************************************/
+    const MONSTER_TYPES = [
+      { name: '말랑 젤리몬', color: '#38bdf8', eyeColor: '#0284c7', shape: 'jelly' },
+      { name: '통통 별사탕몬', color: '#f472b6', eyeColor: '#be185d', shape: 'star' },
+      { name: '빙글 도넛몬', color: '#a78bfa', eyeColor: '#6d28d9', shape: 'ufo' },
+      { name: '바삭 우주문어', color: '#fb923c', eyeColor: '#c2410c', shape: 'octo' },
+      { name: '대왕 은하해적 보스', color: '#f43f5e', eyeColor: '#881337', shape: 'boss', isBoss: true }
+    ];
+
+    const PRAISE_WORDS = [
+      '정답! 구슬이 어떻게 합쳐지는지 볼까요? 🚀',
+      '우와! 덧셈 천재! 구슬들이 날아가요! 🌟',
+      '최고야! 눈으로 왜 답인지 확인해 봐요! ✨',
+      '백발백중! 두 숫자가 하나로 합쳐져요! ⚡',
+      '대성공! 양쪽 구슬 개수를 비교해 볼까요? 💎'
+    ];
+
+    const state = {
+      stage: 1,            // 1: 합<=10, 2: 받아올림(합<=20), 3: 등식퍼즐(3+5=2+?), 4: 종합 아케이드
+      questionModeFilter: 'stage', // 'stage' | 'standard' | 'balance' | 'mixed'
+      problemType: 'standard',     // 현재 문제 타입: 'standard' (A+B=?) | 'balance' (A+B=C+? 또는 A+B=?+D)
+      unknownPos: 'd',             // 'result' (A+B=?) | 'd' (A+B=C+?) | 'c' (A+B=?+D)
+      wave: 1,
+      score: 0,
+      bestScores: { 1: 0, 2: 0, 3: 0, 4: 0 },
+      combo: 0,
+      maxCombo: 0,
+      solvedCount: 0,
+      lives: 5,
+      maxLives: 5,
+      numA: 3,
+      numB: 5,
+      numC: 2,
+      numD: 6,
+      answer: 8,
+      userInput: '',
+      autoFire: true,
+      visualAidOn: true,
+      timerMode: false,    // false = 여유모드(기본), true = 스릴모드
+      timeLeft: 100,       // 0 ~ 100%
+      timerId: null,
+      isLocked: false,
+      animToken: 0,        // 진행 중인 애니메이션 취소/식별 토큰
+      monster: {
+        name: '말랑 젤리몬',
+        hp: 1,
+        maxHp: 1,
+        color: '#38bdf8',
+        shape: 'jelly',
+        isBoss: false,
+        hitFlash: 0,
+        bouncePhase: 0
+      },
+      lasers: [],
+      particles: [],
+      floatingTexts: []
+    };
+
+    // 로컬스토리지 최고점수 불러오기
+    try {
+      const saved = localStorage.getItem('star_math_best_v2');
+      if (saved) state.bestScores = { ...state.bestScores, ...JSON.parse(saved) };
+    } catch (e) {}
+
+    function saveBestScore() {
+      if (state.score > (state.bestScores[state.stage] || 0)) {
+        state.bestScores[state.stage] = state.score;
+        try {
+          localStorage.setItem('star_math_best_v2', JSON.stringify(state.bestScores));
+        } catch (e) {}
+      }
+    }
+
+    /*************************************************************************
+     * 4. DOM 요소 참조
+     *************************************************************************/
+    const el = {
+      hudModeBadge: document.getElementById('hud-mode-badge'),
+      hudWave: document.getElementById('hud-wave'),
+      hudHearts: document.getElementById('hud-hearts'),
+      hudScore: document.getElementById('hud-score'),
+      hudBest: document.getElementById('hud-best'),
+      hudComboBox: document.getElementById('hud-combo-box'),
+      hudCombo: document.getElementById('hud-combo'),
+      mobileComboBadge: document.getElementById('mobile-combo-badge'),
+      btnQtypeCycle: document.getElementById('btn-qtype-cycle'),
+      qtypeLabel: document.getElementById('qtype-label'),
+      monsterName: document.getElementById('monster-name'),
+      monsterHpText: document.getElementById('monster-hp-text'),
+      monsterHpBar: document.getElementById('monster-hp-bar'),
+      timerBarWrap: document.getElementById('timer-bar-wrap'),
+      timerBar: document.getElementById('timer-bar'),
+      feedbackBanner: document.getElementById('feedback-banner'),
+      feedbackText: document.getElementById('feedback-text'),
+      problemCard: document.getElementById('problem-card'),
+      equationContainer: document.getElementById('equation-container'),
+      tenMakeTip: document.getElementById('ten-make-tip'),
+      mergeStepBadge: document.getElementById('merge-step-badge'),
+      btnReplayAnim: document.getElementById('btn-replay-anim'),
+      btnSkipAnim: document.getElementById('btn-skip-anim'),
+      nextQuestionOverlay: document.getElementById('next-question-overlay'),
+      nextPanelTitle: document.getElementById('next-panel-title'),
+      nextPanelDesc: document.getElementById('next-panel-desc'),
+      btnPanelReplay: document.getElementById('btn-panel-replay'),
+      btnPanelNext: document.getElementById('btn-panel-next'),
+      visualAidContainer: document.getElementById('visual-aid-container'),
+      standardVisualBoard: document.getElementById('standard-visual-board'),
+      boxStdA: document.getElementById('box-std-a'),
+      boxStdATitle: document.getElementById('box-std-a-title'),
+      boxStdACount: document.getElementById('box-std-a-count'),
+      gridStdA: document.getElementById('grid-std-a'),
+      stdMidSymbol: document.getElementById('std-mid-symbol'),
+      stdMidLabel: document.getElementById('std-mid-label'),
+      boxStdB: document.getElementById('box-std-b'),
+      boxStdBTitle: document.getElementById('box-std-b-title'),
+      boxStdBCount: document.getElementById('box-std-b-count'),
+      gridStdB: document.getElementById('grid-std-b'),
+      balanceVisualBoard: document.getElementById('balance-visual-board'),
+      balLeftCard: document.getElementById('bal-left-card'),
+      balLeftTitle: document.getElementById('bal-left-title'),
+      balLeftSumBadge: document.getElementById('bal-left-sum-badge'),
+      balALabel: document.getElementById('bal-a-label'),
+      balBLabel: document.getElementById('bal-b-label'),
+      balLeftPlus: document.getElementById('bal-left-plus'),
+      gridBalA: document.getElementById('grid-bal-a'),
+      gridBalB: document.getElementById('grid-bal-b'),
+      balEqualIcon: document.getElementById('bal-equal-icon'),
+      balEqualText: document.getElementById('bal-equal-text'),
+      balRightCard: document.getElementById('bal-right-card'),
+      balRightTitle: document.getElementById('bal-right-title'),
+      balRightSumBadge: document.getElementById('bal-right-sum-badge'),
+      balCLabel: document.getElementById('bal-c-label'),
+      balDLabel: document.getElementById('bal-d-label'),
+      balRightPlus: document.getElementById('bal-right-plus'),
+      gridBalC: document.getElementById('grid-bal-c'),
+      gridBalD: document.getElementById('grid-bal-d'),
+      balMysteryCover: document.getElementById('bal-mystery-cover'),
+      btnToggleVisual: document.getElementById('btn-toggle-visual'),
+      btnCountHelper: document.getElementById('btn-count-helper'),
+      btnAutofire: document.getElementById('btn-autofire'),
+      autofireDot: document.getElementById('autofire-dot'),
+      autofireText: document.getElementById('autofire-text'),
+      btnTimerToggle: document.getElementById('btn-timer-toggle'),
+      timerIcon: document.getElementById('timer-icon'),
+      timerLabel: document.getElementById('timer-label'),
+      btnSoundToggle: document.getElementById('btn-sound-toggle'),
+      startOverlay: document.getElementById('start-overlay'),
+      resultModal: document.getElementById('result-modal'),
+      resultEmoji: document.getElementById('result-emoji'),
+      resultTitle: document.getElementById('result-title'),
+      resultDesc: document.getElementById('result-desc'),
+      resultScore: document.getElementById('result-score'),
+      resultCombo: document.getElementById('result-combo'),
+      resultSolved: document.getElementById('result-solved'),
+      pwaModal: document.getElementById('pwa-modal'),
+      codeManifest: document.getElementById('code-manifest'),
+      codeSw: document.getElementById('code-sw')
+    };
+
+    /*************************************************************************
+     * 5. 분리형 구슬 상자 DOM 생성 및 정답 후 합쳐지는 원리 애니메이션 엔진
+     *************************************************************************/
+    function createTenSlots(container, sizeClass, onTap) {
+      container.innerHTML = '';
+      for (let i = 0; i < 10; i++) {
+        const slot = document.createElement('button');
+        slot.type = 'button';
+        slot.dataset.idx = i;
+        slot.className = `gem-slot ${sizeClass} rounded-lg border border-slate-700/80 bg-slate-900/70 flex items-center justify-center font-num text-white`;
+        slot.addEventListener('click', () => onTap(i, slot));
+        container.appendChild(slot);
+      }
+    }
+
+    function buildTenFrameDOM() {
+      // 일반 덧셈용 분리된 두 상자 (각 10칸)
+      createTenSlots(el.gridStdA, 'h-6 sm:h-7 text-xs sm:text-sm', (idx, slot) => {
+        if (!slot.dataset.filled) return;
+        sound.countGem(idx);
+        triggerSlotBounce(slot, idx + 1);
+      });
+      createTenSlots(el.gridStdB, 'h-6 sm:h-7 text-xs sm:text-sm', (idx, slot) => {
+        if (!slot.dataset.filled) return;
+        sound.countGem(idx);
+        triggerSlotBounce(slot, idx + 1);
+      });
+
+      // 등식 비교 퍼즐용 4개 미니 상자 (왼쪽 A, B / 오른쪽 C, D)
+      createTenSlots(el.gridBalA, 'h-4 sm:h-5 text-[10px] sm:text-xs', (idx, slot) => {
+        if (!slot.dataset.filled) return;
+        sound.countGem(idx);
+        triggerSlotBounce(slot, idx + 1);
+      });
+      createTenSlots(el.gridBalB, 'h-4 sm:h-5 text-[10px] sm:text-xs', (idx, slot) => {
+        if (!slot.dataset.filled) return;
+        sound.countGem(idx);
+        triggerSlotBounce(slot, idx + 1);
+      });
+      createTenSlots(el.gridBalC, 'h-4 sm:h-5 text-[10px] sm:text-xs', (idx, slot) => {
+        if (!slot.dataset.filled) return;
+        sound.countGem(idx);
+        triggerSlotBounce(slot, idx + 1);
+      });
+      createTenSlots(el.gridBalD, 'h-4 sm:h-5 text-[10px] sm:text-xs', (idx, slot) => {
+        if (!slot.dataset.filled) return;
+        sound.countGem(idx);
+        triggerSlotBounce(slot, idx + 1);
+      });
+    }
+
+    function triggerSlotBounce(slotEl, labelText) {
+      slotEl.classList.remove('gem-bounce');
+      void slotEl.offsetWidth;
+      slotEl.classList.add('gem-bounce');
+      if (labelText !== undefined) slotEl.textContent = labelText;
+    }
+
+    function fillSeparatedGrid(gridEl, count, colorClass, sizeClass, showNumbers = false) {
+      const slots = gridEl.children;
+      for (let i = 0; i < 10; i++) {
+        const slot = slots[i];
+        slot.className = `gem-slot ${sizeClass} rounded-lg border border-slate-700/80 bg-slate-900/70 flex items-center justify-center font-num text-white`;
+        slot.textContent = '';
+        delete slot.dataset.filled;
+
+        if (i < count) {
+          slot.classList.add(colorClass);
+          slot.dataset.filled = '1';
+          if (showNumbers) slot.textContent = i + 1;
+        }
+      }
+    }
+
+    // 문제 풀이 단계에서 두 숫자의 구슬을 섞지 않고 완전히 분리된 상자에 각각 렌더링!
+    function renderSeparatedVisuals(showNumbers = false, keepControls = false) {
+      el.boxStdA.classList.remove('ten-complete-glow');
+      el.boxStdB.classList.remove('ten-complete-glow');
+      el.balLeftCard.classList.remove('ten-complete-glow');
+      el.balRightCard.classList.remove('ten-complete-glow');
+      if (!keepControls) {
+        el.mergeStepBadge.classList.add('hidden');
+        el.btnReplayAnim.classList.add('hidden');
+        el.btnSkipAnim.classList.add('hidden');
+        el.nextQuestionOverlay.classList.add('hidden');
+      }
+
+      if (state.problemType === 'standard') {
+        el.standardVisualBoard.classList.remove('hidden');
+        el.balanceVisualBoard.classList.add('hidden');
+
+        el.boxStdATitle.textContent = `첫째 수 (${state.numA})`;
+        el.boxStdACount.textContent = `${state.numA}개`;
+        el.boxStdBTitle.textContent = `둘째 수 (${state.numB})`;
+        el.boxStdBCount.textContent = `${state.numB}개`;
+        el.stdMidSymbol.textContent = '+';
+        el.stdMidLabel.textContent = '따로 세기';
+
+        // 왼쪽 상자에는 A개만, 오른쪽 상자에는 B개만 각각 따로 배치 (정답 미리 노출 방지!)
+        fillSeparatedGrid(el.gridStdA, state.numA, 'gem-active-a', 'h-6 sm:h-7 text-xs sm:text-sm', showNumbers);
+        fillSeparatedGrid(el.gridStdB, state.numB, 'gem-active-b', 'h-6 sm:h-7 text-xs sm:text-sm', showNumbers);
+
+        if (!keepControls) {
+          el.tenMakeTip.textContent = `🎵 왼쪽 상자(${state.numA}개)와 오른쪽 상자(${state.numB}개)가 따로 있어요! 합치면 몇 개일까요?`;
+        }
+      } else {
+        // 등식 비교 퍼즐 (예: 3 + 5 = 2 + ?)
+        el.standardVisualBoard.classList.add('hidden');
+        el.balanceVisualBoard.classList.remove('hidden');
+
+        el.balLeftTitle.textContent = `왼쪽 묶음 (${state.numA} + ${state.numB})`;
+        el.balLeftSumBadge.textContent = '각각 세어봐요';
+        el.balLeftSumBadge.className = 'px-1.5 rounded bg-slate-800 text-slate-300';
+        el.balALabel.textContent = `${state.numA}개`;
+        el.balBLabel.textContent = `${state.numB}개`;
+        if (el.balLeftPlus) el.balLeftPlus.textContent = '+';
+
+        fillSeparatedGrid(el.gridBalA, state.numA, 'gem-active-a', 'h-4 sm:h-5 text-[10px] sm:text-xs', showNumbers);
+        fillSeparatedGrid(el.gridBalB, state.numB, 'gem-active-b', 'h-4 sm:h-5 text-[10px] sm:text-xs', showNumbers);
+
+        const knownRight = state.unknownPos === 'd' ? state.numC : state.numD;
+        el.balRightTitle.textContent =
+          state.unknownPos === 'd'
+            ? `오른쪽 묶음 (${state.numC} + ?)`
+            : `오른쪽 묶음 (? + ${state.numD})`;
+        el.balRightSumBadge.textContent = '얼마가 필요할까?';
+        el.balRightSumBadge.className = 'px-1.5 rounded bg-slate-800 text-slate-300';
+        el.balCLabel.textContent = `${knownRight}개`;
+        el.balDLabel.textContent = `? 개`;
+        if (el.balRightPlus) el.balRightPlus.textContent = '+';
+
+        fillSeparatedGrid(el.gridBalC, knownRight, 'gem-active-c', 'h-4 sm:h-5 text-[10px] sm:text-xs', showNumbers);
+        fillSeparatedGrid(el.gridBalD, 0, 'gem-active-b', 'h-4 sm:h-5 text-[10px] sm:text-xs', false);
+        el.balMysteryCover.classList.remove('hidden');
+
+        el.balEqualIcon.textContent = '⚖️';
+        el.balEqualText.textContent = '양쪽 같게!';
+        if (!keepControls) {
+          el.tenMakeTip.textContent = `⚖️ 왼쪽(${state.numA}+${state.numB})과 오른쪽이 똑같은 개수가 되려면 [ ? ]에 몇 개가 들어가야 할까요?`;
+        }
+      }
+    }
+
+    // 상단 수식 바 렌더링 (일반 덧셈 A+B=? 및 등식 퍼즐 3+5=2+? 지원)
+    function renderEquationBar() {
+      const inputDisplay = state.userInput !== '' ? state.userInput : '?';
+      const ansBoxHTML = `<span id="answer-box" class="answer-box-glow min-w-[2.9rem] sm:min-w-[3.8rem] text-center px-2 py-0.5 rounded-xl bg-indigo-950 border-2 border-sky-400 text-white shadow-inner inline-block">${inputDisplay}</span>`;
+
+      if (state.problemType === 'standard') {
+        el.equationContainer.innerHTML = `
+          <span class="text-cyan-300">${state.numA}</span>
+          <span class="text-slate-400">+</span>
+          <span class="text-amber-300">${state.numB}</span>
+          <span class="text-slate-400">=</span>
+          ${ansBoxHTML}
+        `;
+      } else {
+        const rightPartHTML =
+          state.unknownPos === 'd'
+            ? `<span class="text-emerald-300">${state.numC}</span> <span class="text-slate-400">+</span> ${ansBoxHTML}`
+            : `${ansBoxHTML} <span class="text-slate-400">+</span> <span class="text-emerald-300">${state.numD}</span>`;
+
+        el.equationContainer.innerHTML = `
+          <span class="text-cyan-300">${state.numA}</span>
+          <span class="text-slate-400">+</span>
+          <span class="text-amber-300">${state.numB}</span>
+          <span class="px-1.5 py-0.5 rounded-lg bg-indigo-900/80 border border-indigo-400 text-white">=</span>
+          ${rightPartHTML}
+        `;
+      }
+    }
+
+    function getAnswerBoxEl() {
+      return document.getElementById('answer-box');
+    }
+
+    // 프로미스 기반 대기 도우미 (스킵 토큰 체크 포함)
+    function waitMs(ms, token) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(state.animToken === token);
+        }, ms);
+      });
+    }
+
+    // 구슬 한 개가 출발 슬롯(fromEl)에서 도착 슬롯(toEl)으로 포물선/직선 비행하는 시각 애니메이션
+    function animateGemFlight(fromEl, toEl, colorClass, labelText = '') {
+      return new Promise((resolve) => {
+        if (!fromEl || !toEl || !state.visualAidOn) {
+          resolve();
+          return;
+        }
+        const r1 = fromEl.getBoundingClientRect();
+        const r2 = toEl.getBoundingClientRect();
+        if (r1.width === 0 || r2.width === 0) {
+          resolve();
+          return;
+        }
+
+        const flyer = document.createElement('div');
+        flyer.className = `flying-gem ${colorClass}`;
+        flyer.style.width = `${r1.width}px`;
+        flyer.style.height = `${r1.height}px`;
+        flyer.style.left = `${r1.left}px`;
+        flyer.style.top = `${r1.top}px`;
+        flyer.style.fontSize = '12px';
+        flyer.textContent = labelText;
+        document.body.appendChild(flyer);
+
+        const dx = r2.left - r1.left;
+        const dy = r2.top - r1.top;
+
+        requestAnimationFrame(() => {
+          flyer.style.transform = `translate(${dx}px, ${dy}px) scale(1.18)`;
+        });
+
+        setTimeout(() => {
+          flyer.remove();
+          resolve();
+        }, 330);
+      });
+    }
+
+    function clearFlyingGems() {
+      document.querySelectorAll('.flying-gem').forEach((node) => node.remove());
+    }
+
+    // ★ 핵심: [다음 문제 ▶] 버튼을 누르기 전까지 두 숫자의 구슬이 합쳐지는 원리를 무한 반복 재생하는 루프 엔진
+    async function playPostAnswerMergeAnimation(token) {
+      // 만약 구슬 OFF 상태였다면 원리 확인을 위해 자동으로 구슬 상자를 펼쳐 보여줌
+      if (!state.visualAidOn) {
+        state.visualAidOn = true;
+        el.visualAidContainer.classList.remove('hidden');
+        el.btnToggleVisual.textContent = '구슬 ON';
+        setTimeout(resizeCanvas, 50);
+      }
+
+      el.mergeStepBadge.classList.remove('hidden');
+      el.btnReplayAnim.classList.remove('hidden');
+      el.btnSkipAnim.classList.remove('hidden');
+      el.nextQuestionOverlay.classList.remove('hidden');
+
+      let cycleCount = 0;
+
+      // 사용자가 [다음 문제 ▶] 버튼을 눌러 token이 변경되기 전까지 무한 반복!
+      while (state.animToken === token && state.isLocked) {
+        cycleCount += 1;
+        const playSoundThisCycle = cycleCount === 1; // 첫 회차에는 효과음 재생, 2회차부터는 조용히 시각 반복
+
+        clearFlyingGems();
+        // 1단계: 분리된 초기 상태부터 다시 보여주기
+        renderSeparatedVisuals(true, true);
+        el.mergeStepBadge.textContent = `🔁 합치기 원리 반복 재생 중 (${cycleCount}회차)`;
+
+        if (state.problemType === 'standard') {
+          const a = state.numA;
+          const b = state.numB;
+          const total = a + b;
+          const slotsA = el.gridStdA.children;
+          const slotsB = el.gridStdB.children;
+          const moveCount = Math.min(b, 10 - a);
+          const remainInB = b - moveCount;
+
+          el.tenMakeTip.textContent = `① 분리 상태: 왼쪽 상자에 ${a}개, 오른쪽 상자에 ${b}개가 따로 들어 있어요.`;
+          el.nextPanelTitle.textContent = `${a} + ${b} = ${total} 정답! 🎉`;
+          el.nextPanelDesc.textContent =
+            total > 10
+              ? `${a}개에 ${moveCount}개를 채워 10을 만들고, 남은 ${remainInB}개를 더해요!`
+              : `왼쪽 ${a}개에 오른쪽 ${b}개가 하나씩 날아가 합쳐져요!`;
+
+          await waitMs(850, token);
+          if (state.animToken !== token) return;
+
+          // 2단계: 오른쪽 상자(B)의 구슬이 왼쪽 상자(A)의 빈칸으로 하나씩 날아가 합쳐짐
+          el.stdMidSymbol.textContent = '⬅️';
+          el.stdMidLabel.textContent = '합치기!';
+
+          if (total > 10) {
+            el.tenMakeTip.textContent = `② 합치기: ${a}개 상자의 빈칸 ${moveCount}개에 오른쪽 구슬이 날아가 10을 채워요!`;
+          } else {
+            el.tenMakeTip.textContent = `② 합치기: 오른쪽 구슬 ${b}개가 왼쪽 상자로 날아가 ${a}개와 합쳐져요!`;
+          }
+
+          for (let m = 0; m < moveCount; m++) {
+            if (state.animToken !== token) return;
+            const srcIdx = b - 1 - m;
+            const destIdx = a + m;
+            const srcSlot = slotsB[srcIdx];
+            const destSlot = slotsA[destIdx];
+
+            srcSlot.className = 'gem-slot h-6 sm:h-7 text-xs sm:text-sm rounded-lg border border-slate-700/80 bg-slate-900/70 flex items-center justify-center font-num text-white';
+            srcSlot.textContent = '';
+
+            if (playSoundThisCycle) sound.countGem(destIdx);
+            await animateGemFlight(srcSlot, destSlot, 'gem-active-b', destIdx + 1);
+            if (state.animToken !== token) return;
+
+            destSlot.classList.add('gem-active-b');
+            destSlot.dataset.filled = '1';
+            triggerSlotBounce(destSlot, destIdx + 1);
+
+            el.boxStdACount.textContent = `${destIdx + 1}개`;
+            el.boxStdBCount.textContent = `${b - 1 - m}개`;
+
+            await waitMs(90, token);
+          }
+
+          if (state.animToken !== token) return;
+
+          // 3단계: 완성된 합계 상태 강조 및 유지
+          if (total >= 10) {
+            el.boxStdA.classList.add('ten-complete-glow');
+            el.boxStdATitle.textContent = '10 묶음 완성! 🎉';
+            if (playSoundThisCycle) sound.playTone(880, 'triangle', 0.22, 0.2);
+
+            if (remainInB > 0) {
+              for (let r = 0; r < remainInB; r++) {
+                slotsB[r].textContent = 10 + r + 1;
+                triggerSlotBounce(slotsB[r], 10 + r + 1);
+              }
+              el.boxStdBTitle.textContent = `남은 구슬 (${remainInB})`;
+              el.tenMakeTip.textContent = `③ 원리 확인: ${a}에 ${moveCount}개를 채워 10 완성! 10 + ${remainInB} = ${total} (계속 반복 재생됨)`;
+              if (cycleCount === 1) {
+                showFeedback(`10 만들기 성공! 10 + ${remainInB} = ${total} 🎉`, 'emerald');
+              }
+            } else {
+              el.boxStdBTitle.textContent = '모두 이동 완료!';
+              el.tenMakeTip.textContent = `③ 원리 확인: ${a}개와 ${b}개가 합쳐져 딱 10 묶음 완성! (계속 반복 재생됨)`;
+              if (cycleCount === 1) {
+                showFeedback(`딱 10 완성! ${a} + ${b} = 10 🎉`, 'emerald');
+              }
+            }
+          } else {
+            el.boxStdA.classList.add('ten-complete-glow');
+            el.boxStdATitle.textContent = `모두 합쳐 ${total}개! 🎉`;
+            el.boxStdBTitle.textContent = '모두 이동 완료!';
+            el.tenMakeTip.textContent = `③ 원리 확인: ${a}개에 ${b}개가 합쳐져서 모두 ${total}개가 되었어요! (계속 반복 재생됨)`;
+            if (cycleCount === 1) {
+              showFeedback(`${a} + ${b} = ${total}! 구슬 ${total}개 확인 완료! 🎉`, 'emerald');
+            }
+          }
+
+          // 완성된 모습을 충분히 관찰할 수 있도록 1.8초 유지 후 다시 1단계(분리 상태)로 루프!
+          await waitMs(1850, token);
+        } else {
+          // [등식 비교 퍼즐 원리 무한 반복 애니메이션] (예: 3 + 5 = 2 + [6])
+          const total = state.numA + state.numB;
+          const knownRight = state.unknownPos === 'd' ? state.numC : state.numD;
+          const ans = state.answer;
+
+          el.nextPanelTitle.textContent = `${state.numA} + ${state.numB} = ${knownRight} + ${ans} (양쪽 모두 ${total}) 🎉`;
+          el.nextPanelDesc.textContent = `왼쪽 묶음(${total}개)과 오른쪽 묶음(${total}개)이 각각 합쳐져 똑같아지는 과정을 확인해 봐요!`;
+
+          // 1단계: 오른쪽 물음표(?) 가림막이 열리며 정답 개수(ans)만큼 노란 구슬이 분리된 상자에 등장
+          el.tenMakeTip.textContent = `① 분리 상태: 물음표 상자에 정답 구슬 ${ans}개가 나타났어요!`;
+          el.balMysteryCover.classList.add('hidden');
+          el.balDLabel.textContent = `정답 ${ans}개!`;
+          const slotsD = el.gridBalD.children;
+
+          for (let i = 0; i < ans; i++) {
+            if (state.animToken !== token) return;
+            const s = slotsD[i];
+            s.classList.add('gem-active-b');
+            s.dataset.filled = '1';
+            if (playSoundThisCycle) sound.countGem(i);
+            triggerSlotBounce(s, i + 1);
+            await waitMs(80, token);
+          }
+
+          await waitMs(650, token);
+          if (state.animToken !== token) return;
+
+          // 2단계: 왼쪽 상자(B -> A) 합치기 비행 애니메이션
+          el.tenMakeTip.textContent = `② 왼쪽 합치기: ${state.numA}개와 ${state.numB}개를 합치면 모두 ${total}개가 돼요!`;
+          if (el.balLeftPlus) el.balLeftPlus.textContent = '⬅️';
+          const slotsBalA = el.gridBalA.children;
+          const slotsBalB = el.gridBalB.children;
+          const moveLeft = Math.min(state.numB, 10 - state.numA);
+
+          for (let m = 0; m < moveLeft; m++) {
+            if (state.animToken !== token) return;
+            const src = slotsBalB[state.numB - 1 - m];
+            const dst = slotsBalA[state.numA + m];
+            src.className = 'gem-slot h-4 sm:h-5 text-[10px] sm:text-xs rounded-lg border border-slate-700/80 bg-slate-900/70 flex items-center justify-center font-num text-white';
+            src.textContent = '';
+
+            if (playSoundThisCycle) sound.countGem(state.numA + m);
+            await animateGemFlight(src, dst, 'gem-active-b', state.numA + m + 1);
+            if (state.animToken !== token) return;
+
+            dst.classList.add('gem-active-b');
+            triggerSlotBounce(dst, state.numA + m + 1);
+          }
+          el.balLeftSumBadge.textContent = `합계 = ${total}개!`;
+          el.balLeftSumBadge.className = 'px-1.5 rounded bg-emerald-500 text-slate-950 font-bold';
+
+          await waitMs(350, token);
+          if (state.animToken !== token) return;
+
+          // 3단계: 오른쪽 상자(D -> C) 합치기 비행 애니메이션
+          el.tenMakeTip.textContent = `③ 오른쪽 합치기: ${knownRight}개와 정답 ${ans}개를 합쳐도 똑같이 ${total}개가 돼요!`;
+          if (el.balRightPlus) el.balRightPlus.textContent = '⬅️';
+          const slotsBalC = el.gridBalC.children;
+          const moveRight = Math.min(ans, 10 - knownRight);
+
+          for (let m = 0; m < moveRight; m++) {
+            if (state.animToken !== token) return;
+            const src = slotsD[ans - 1 - m];
+            const dst = slotsBalC[knownRight + m];
+            src.className = 'gem-slot h-4 sm:h-5 text-[10px] sm:text-xs rounded-lg border border-slate-700/80 bg-slate-900/70 flex items-center justify-center font-num text-white';
+            src.textContent = '';
+
+            if (playSoundThisCycle) sound.countGem(knownRight + m);
+            await animateGemFlight(src, dst, 'gem-active-b', knownRight + m + 1);
+            if (state.animToken !== token) return;
+
+            dst.classList.add('gem-active-b');
+            triggerSlotBounce(dst, knownRight + m + 1);
+          }
+
+          if (playSoundThisCycle) sound.playTone(987.77, 'triangle', 0.25, 0.2);
+          el.balLeftCard.classList.add('ten-complete-glow');
+          el.balRightCard.classList.add('ten-complete-glow');
+
+          el.balRightSumBadge.textContent = `합계 = ${total}개!`;
+          el.balRightSumBadge.className = 'px-1.5 rounded bg-emerald-500 text-slate-950 font-bold';
+
+          el.balEqualIcon.textContent = '🎉';
+          el.balEqualText.textContent = `${total} = ${total}`;
+
+          el.tenMakeTip.textContent = `⚖️ 양쪽 모두 ${total}개로 똑같아요! ([다음 문제 ▶]를 누를 때까지 반복 재생됩니다)`;
+          if (cycleCount === 1) {
+            showFeedback(`양쪽 모두 ${total}개로 똑같아요! 정답은 ${ans}! 🎉`, 'emerald');
+          }
+
+          await waitMs(1950, token);
+        }
+      }
+    }
+
+    // 현재 정답 원리 애니메이션을 처음(1회차)부터 즉시 다시 재생
+    function restartMergeAnimationLoop() {
+      if (!state.isLocked) return;
+      clearFlyingGems();
+      const newToken = ++state.animToken;
+      playPostAnswerMergeAnimation(newToken);
+    }
+
+    // [💡 구슬 세기] 도우미 버튼 클릭 시 각 상자별로 구슬을 하나씩 반짝이며 숫자를 들려줌
+    let countAnimTimeouts = [];
+    function clearCountAnimation() {
+      countAnimTimeouts.forEach((t) => clearTimeout(t));
+      countAnimTimeouts = [];
+    }
+
+    function playCountingHelper() {
+      if (state.isLocked) return;
+      clearCountAnimation();
+
+      if (state.problemType === 'standard') {
+        showFeedback(`왼쪽 상자 ${state.numA}개, 오른쪽 상자 ${state.numB}개를 세어 볼까요? 🎵`, 'cyan');
+        const slotsA = el.gridStdA.children;
+        const slotsB = el.gridStdB.children;
+
+        for (let i = 0; i < state.numA; i++) {
+          const t = setTimeout(() => {
+            sound.countGem(i);
+            triggerSlotBounce(slotsA[i], i + 1);
+          }, i * 140);
+          countAnimTimeouts.push(t);
+        }
+
+        for (let j = 0; j < state.numB; j++) {
+          const t = setTimeout(() => {
+            sound.countGem(state.numA + j);
+            triggerSlotBounce(slotsB[j], j + 1);
+          }, (state.numA + j) * 140 + 180);
+          countAnimTimeouts.push(t);
+        }
+      } else {
+        const leftSum = state.numA + state.numB;
+        const knownRight = state.unknownPos === 'd' ? state.numC : state.numD;
+        showFeedback(`왼쪽은 모두 ${leftSum}개예요! 오른쪽 ${knownRight}개에 몇 개를 더하면 ${leftSum}개가 될까요? 💡`, 'cyan');
+
+        const slotsA = el.gridBalA.children;
+        const slotsB = el.gridBalB.children;
+        for (let i = 0; i < state.numA; i++) {
+          const t = setTimeout(() => {
+            sound.countGem(i);
+            triggerSlotBounce(slotsA[i], i + 1);
+          }, i * 130);
+          countAnimTimeouts.push(t);
+        }
+        for (let j = 0; j < state.numB; j++) {
+          const t = setTimeout(() => {
+            sound.countGem(state.numA + j);
+            triggerSlotBounce(slotsB[j], state.numA + j + 1);
+          }, (state.numA + j) * 130);
+          countAnimTimeouts.push(t);
+        }
+      }
+    }
+
+    /*************************************************************************
+     * 6. 문제 출제 및 스테이지/몬스터 관리 (3+5=2+? 등식 퍼즐 포함)
+     *************************************************************************/
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function spawnMonsterForWave() {
+      const isBossWave = state.wave % 5 === 0;
+      if (isBossWave) {
+        const bossTpl = MONSTER_TYPES[4];
+        state.monster = {
+          name: `Lv.${Math.ceil(state.wave / 5)} ${bossTpl.name}`,
+          hp: 2,
+          maxHp: 2,
+          color: bossTpl.color,
+          shape: 'boss',
+          isBoss: true,
+          hitFlash: 0,
+          bouncePhase: 0
+        };
+        showFeedback('🚨 거대 우주 해적 보스가 나타났어요! (2번 명중!)', 'amber');
+      } else {
+        const tpl = MONSTER_TYPES[(state.wave - 1) % 4];
+        state.monster = {
+          name: tpl.name,
+          hp: 1,
+          maxHp: 1,
+          color: tpl.color,
+          shape: tpl.shape,
+          isBoss: false,
+          hitFlash: 0,
+          bouncePhase: 0
+        };
+      }
+      updateMonsterHUD();
+    }
+
+    function decideProblemType() {
+      if (state.questionModeFilter === 'standard') return 'standard';
+      if (state.questionModeFilter === 'balance') return 'balance';
+      if (state.questionModeFilter === 'mixed') {
+        return Math.random() < 0.5 ? 'standard' : 'balance';
+      }
+      // 'stage' 기본값
+      if (state.stage === 3) return 'balance';
+      if (state.stage === 4) return state.wave % 2 === 0 ? 'balance' : 'standard';
+      return 'standard';
+    }
+
+    function updateQtypeBadgeText() {
+      const labels = {
+        stage: state.stage === 3 ? '등식 퍼즐 (3+5=2+?)' : state.stage === 4 ? '혼합 (덧셈+등식)' : '일반 덧셈 (A+B=?)',
+        standard: '일반 덧셈 고정',
+        balance: '등식(3+5=2+?) 고정',
+        mixed: '일반+등식 혼합'
+      };
+      el.qtypeLabel.textContent = labels[state.questionModeFilter] || '일반 덧셈';
+    }
+
+    function generateProblem() {
+      clearCountAnimation();
+      clearFlyingGems();
+      state.animToken += 1;
+
+      const pType = decideProblemType();
+      state.problemType = pType;
+
+      if (pType === 'standard') {
+        let a = 1;
+        let b = 1;
+        if (state.stage === 1) {
+          // 1단계: 합이 10 이하인 한 자리 덧셈
+          const sum = randInt(3, 10);
+          a = randInt(1, sum - 1);
+          b = sum - a;
+        } else if (state.stage === 2) {
+          // 2단계: 10 만들기 받아올림 (각 숫자는 2~9, 합은 11~18)
+          a = randInt(4, 9);
+          const minB = Math.max(2, 11 - a);
+          b = randInt(minB, 9);
+        } else {
+          // 3, 4단계에서 일반 덧셈이 나올 때: 각 숫자는 1~10 이하 (10칸 상자에 딱 맞게)
+          a = randInt(3, 9);
+          b = randInt(2, 9);
+        }
+
+        state.numA = a;
+        state.numB = b;
+        state.answer = a + b;
+        state.unknownPos = 'result';
+      } else {
+        // 등식 비교 퍼즐 (예: 3 + 5 = 2 + ? 또는 6 + 4 = ? + 3)
+        // 각 상자에 구슬이 최대 10개까지 들어가므로 A, B, C, D는 모두 1~10 범위로 구성
+        const minSum = state.stage === 1 ? 4 : 6;
+        const maxSum = state.stage === 1 ? 10 : 15;
+        const total = randInt(minSum, maxSum);
+
+        const minA = Math.max(1, total - 9);
+        const maxA = Math.min(9, total - 1);
+        const a = randInt(minA, maxA);
+        const b = total - a;
+
+        // 오른쪽 식의 알려진 수(known)가 A나 B와 달라서 진짜 덧셈 사고력을 기를 수 있게 출제
+        const minKnown = Math.max(1, total - 10);
+        const maxKnown = Math.min(10, total - 1);
+        let known = randInt(minKnown, maxKnown);
+        if (known === a && maxKnown > minKnown) {
+          known = known < maxKnown ? known + 1 : known - 1;
+        }
+        const unknown = total - known;
+
+        state.numA = a;
+        state.numB = b;
+        // 주로 3 + 5 = 2 + ? 형태(75%), 가끔 3 + 5 = ? + 2 형태(25%)
+        if (Math.random() < 0.78) {
+          state.unknownPos = 'd';
+          state.numC = known;
+          state.numD = unknown;
+        } else {
+          state.unknownPos = 'c';
+          state.numC = unknown;
+          state.numD = known;
+        }
+        state.answer = unknown;
+      }
+
+      state.userInput = '';
+      state.isLocked = false;
+
+      renderEquationBar();
+      renderSeparatedVisuals(false);
+      resetQuestionTimer();
+    }
+
+    function startStage(stageNum) {
+      sound.init();
+      state.stage = stageNum;
+      state.questionModeFilter = 'stage';
+      state.wave = 1;
+      state.score = 0;
+      state.combo = 0;
+      state.maxCombo = 0;
+      state.solvedCount = 0;
+      state.lives = state.maxLives;
+
+      const stageNames = {
+        1: '1단계 정찰대',
+        2: '2단계 수호대',
+        3: '3단계 저울퍼즐',
+        4: '4단계 올스타'
+      };
+      el.hudModeBadge.textContent = stageNames[stageNum] || '1단계 정찰대';
+      updateQtypeBadgeText();
+      el.startOverlay.classList.add('hidden');
+      el.resultModal.classList.add('hidden');
+
+      spawnMonsterForWave();
+      generateProblem();
+      updateTopHUD();
+    }
+
+    function updateTopHUD() {
+      el.hudWave.textContent = `WAVE ${state.wave}`;
+      el.hudScore.textContent = state.score.toLocaleString();
+      el.hudBest.textContent = (state.bestScores[state.stage] || 0).toLocaleString();
+      el.hudCombo.textContent = `${state.combo}🔥`;
+      el.mobileComboBadge.textContent = `${state.combo}🔥`;
+
+      let heartsHTML = '';
+      for (let i = 0; i < state.maxLives; i++) {
+        heartsHTML += i < state.lives ? '<span>❤️</span>' : '<span class="opacity-25">🖤</span>';
+      }
+      el.hudHearts.innerHTML = heartsHTML;
+    }
+
+    function updateMonsterHUD() {
+      el.monsterName.textContent = state.monster.name;
+      el.monsterHpText.textContent = `HP ${state.monster.hp}/${state.monster.maxHp}`;
+      const pct = Math.max(0, (state.monster.hp / state.monster.maxHp) * 100);
+      el.monsterHpBar.style.width = `${pct}%`;
+    }
+
+    function showFeedback(msg, tone = 'amber') {
+      const borderMap = {
+        amber: 'border-amber-400 text-amber-200',
+        emerald: 'border-emerald-400 text-emerald-200',
+        rose: 'border-rose-400 text-rose-200',
+        cyan: 'border-cyan-400 text-cyan-200'
+      };
+      el.feedbackText.className = `px-4 py-1 rounded-full text-xs sm:text-sm bg-slate-900/95 border-2 shadow-lg ${borderMap[tone] || borderMap.amber}`;
+      el.feedbackText.textContent = msg;
+      el.feedbackBanner.classList.remove('opacity-0', 'scale-90');
+      el.feedbackBanner.classList.add('opacity-100', 'scale-100');
+
+      clearTimeout(showFeedback._tid);
+      showFeedback._tid = setTimeout(() => {
+        el.feedbackBanner.classList.remove('opacity-100', 'scale-100');
+        el.feedbackBanner.classList.add('opacity-0', 'scale-90');
+      }, 2100);
+    }
+
+    /*************************************************************************
+     * 7. 타이머 (여유모드 vs 스릴모드)
+     *************************************************************************/
+    function resetQuestionTimer() {
+      clearInterval(state.timerId);
+      if (!state.timerMode) {
+        el.timerBarWrap.classList.add('hidden');
+        return;
+      }
+      el.timerBarWrap.classList.remove('hidden');
+      state.timeLeft = 100;
+      el.timerBar.style.width = '100%';
+
+      // 한 문제당 약 14초 부여
+      state.timerId = setInterval(() => {
+        if (state.isLocked || !el.startOverlay.classList.contains('hidden')) return;
+        state.timeLeft -= 0.7;
+        el.timerBar.style.width = `${Math.max(0, state.timeLeft)}%`;
+
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerId);
+          handleWrongAnswer(true);
+        }
+      }, 100);
+    }
+
+    /*************************************************************************
+     * 8. 숫자 입력 및 정답 판정 로직 (정답 시 합치기 애니메이션 재생 후 다음 문제 이동)
+     *************************************************************************/
+    function handleNumberInput(digitStr) {
+      if (state.isLocked) return;
+      sound.tapKey(Number(digitStr));
+
+      const maxDigits = String(state.answer).length;
+      if (state.userInput.length >= 2) {
+        state.userInput = digitStr;
+      } else {
+        state.userInput += digitStr;
+      }
+
+      const ansBox = getAnswerBoxEl();
+      if (ansBox) ansBox.textContent = state.userInput;
+
+      // 자동 발사 모드가 켜져 있을 때:
+      // 1) 입력한 숫자가 정답과 정확히 일치하면 즉시 정답 처리!
+      // 2) 또는 정답 자릿수만큼 다 입력했는데 오답이면 살짝 안내 후 판정
+      if (state.autoFire) {
+        if (Number(state.userInput) === state.answer) {
+          checkAnswer();
+        } else if (state.userInput.length >= maxDigits && Number(state.userInput) !== state.answer) {
+          setTimeout(() => {
+            if (!state.isLocked && state.userInput.length >= maxDigits) {
+              checkAnswer();
+            }
+          }, 220);
+        }
+      }
+    }
+
+    function clearInput() {
+      if (state.isLocked) return;
+      sound.tapKey(0);
+      state.userInput = '';
+      const ansBox = getAnswerBoxEl();
+      if (ansBox) ansBox.textContent = '?';
+    }
+
+    function checkAnswer() {
+      if (state.isLocked || state.userInput === '') return;
+
+      const userVal = Number(state.userInput);
+      if (userVal === state.answer) {
+        handleCorrectAnswer();
+      } else {
+        handleWrongAnswer(false);
+      }
+    }
+
+    function proceedToNextQuestion() {
+      state.animToken += 1;
+      clearFlyingGems();
+      el.btnReplayAnim.classList.add('hidden');
+      el.btnSkipAnim.classList.add('hidden');
+      el.mergeStepBadge.classList.add('hidden');
+      el.nextQuestionOverlay.classList.add('hidden');
+
+      const isKilled = state.monster.hp <= 0;
+      if (isKilled) {
+        state.wave += 1;
+        if ((state.stage === 1 || state.stage === 2 || state.stage === 3) && state.wave > 10) {
+          openResultModal(true);
+          return;
+        }
+        spawnMonsterForWave();
+      }
+      generateProblem();
+      updateTopHUD();
+    }
+
+    async function handleCorrectAnswer() {
+      state.isLocked = true;
+      clearInterval(state.timerId);
+      const currentToken = ++state.animToken;
+
+      state.combo += 1;
+      if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+      state.solvedCount += 1;
+
+      const comboBonus = Math.min(50, state.combo * 10);
+      const gained = 100 + comboBonus;
+      state.score += gained;
+      saveBestScore();
+
+      // 정답 박스 초록빛 강조
+      const ansBox = getAnswerBoxEl();
+      if (ansBox) {
+        ansBox.textContent = state.answer;
+        ansBox.className = 'min-w-[2.9rem] sm:min-w-[3.8rem] text-center px-2 py-0.5 rounded-xl bg-emerald-500 border-2 border-emerald-200 text-slate-950 font-bold shadow-lg scale-110 transition-transform inline-block';
+      }
+
+      // 캔버스 레이저 발사 & 몬스터 데미지 연출
+      fireCanvasLaser(gained);
+
+      state.monster.hp -= 1;
+      const isKilled = state.monster.hp <= 0;
+      sound.correctHit(isKilled);
+      updateMonsterHUD();
+      updateTopHUD();
+
+      const praise = PRAISE_WORDS[randInt(0, PRAISE_WORDS.length - 1)];
+      showFeedback(praise, 'emerald');
+
+      // ★ 자동으로 다음 문제로 넘어가지 않고, 사용자가 [다음 문제 ▶] 버튼을 누를 때까지 합치기 원리 애니메이션을 무한 반복 재생!
+      await playPostAnswerMergeAnimation(currentToken);
+    }
+
+    function handleWrongAnswer(isTimeout = false) {
+      sound.wrongHint();
+      state.combo = 0;
+
+      // 스릴모드(타이머 ON)일 때만 하트 감소, 여유모드에서는 하트가 깎이지 않고 친절한 힌트 제공
+      if (state.timerMode) {
+        state.lives = Math.max(0, state.lives - 1);
+      }
+      updateTopHUD();
+
+      el.problemCard.classList.remove('shake-anim');
+      void el.problemCard.offsetWidth;
+      el.problemCard.classList.add('shake-anim');
+
+      const ansBox = getAnswerBoxEl();
+      if (ansBox) {
+        ansBox.className = 'min-w-[2.9rem] sm:min-w-[3.8rem] text-center px-2 py-0.5 rounded-xl bg-rose-900 border-2 border-rose-400 text-rose-100 inline-block';
+      }
+
+      // 오답 시에도 두 상자를 합치지 않고 각각의 상자 안 구슬에만 번호(1~A, 1~B)를 표시해 스스로 생각하게 유도!
+      renderSeparatedVisuals(true);
+
+      if (isTimeout) {
+        showFeedback('시간 초과! 각 상자의 구슬을 세어 보고 다시 눌러 봐요! 💪', 'rose');
+      } else if (state.problemType === 'balance') {
+        const leftSum = state.numA + state.numB;
+        const knownRight = state.unknownPos === 'd' ? state.numC : state.numD;
+        showFeedback(`힌트: 왼쪽은 ${state.numA}+${state.numB}=${leftSum}개예요! ${knownRight}개에 몇 개를 더하면 ${leftSum}개가 될까요? 💡`, 'amber');
+      } else {
+        showFeedback(`아까워요! 왼쪽(${state.numA}개)과 오른쪽(${state.numB}개) 구슬을 다시 세어 볼까요? 💡`, 'amber');
+      }
+
+      if (state.timerMode && state.lives <= 0) {
+        setTimeout(() => openResultModal(false), 600);
+        return;
+      }
+
+      setTimeout(() => {
+        state.userInput = '';
+        const boxNow = getAnswerBoxEl();
+        if (boxNow) {
+          boxNow.textContent = '?';
+          boxNow.className = 'answer-box-glow min-w-[2.9rem] sm:min-w-[3.8rem] text-center px-2 py-0.5 rounded-xl bg-indigo-950 border-2 border-sky-400 text-white shadow-inner inline-block';
+        }
+        if (isTimeout) resetQuestionTimer();
+      }, 450);
+    }
+
+    function openResultModal(isVictory) {
+      clearInterval(state.timerId);
+      if (isVictory) {
+        sound.stageClear();
+        el.resultEmoji.textContent = '🏆';
+        el.resultTitle.textContent = '우주 임무 대성공!';
+        el.resultDesc.textContent = '10개의 외계 악당 웨이브를 모두 물리쳤어요! 정말 멋져요!';
+      } else {
+        el.resultEmoji.textContent = '🛸';
+        el.resultTitle.textContent = '멋진 도전이었어요!';
+        el.resultDesc.textContent = '여유모드로 연습하거나 다시 한 번 출격해 볼까요?';
+      }
+
+      el.resultScore.textContent = state.score.toLocaleString();
+      el.resultCombo.textContent = `${state.maxCombo}🔥`;
+      el.resultSolved.textContent = `${state.solvedCount}개`;
+      el.resultModal.classList.remove('hidden');
+    }
+
+    /*************************************************************************
+     * 9. 우주 배틀 HTML5 캔버스 애니메이션 (반응형 리사이즈 완벽 대응)
+     *************************************************************************/
+    const canvas = document.getElementById('battle-canvas');
+    const ctx = canvas.getContext('2d');
+    let cw = 300;
+    let ch = 150;
+    const stars = [];
+
+    function initStars() {
+      stars.length = 0;
+      for (let i = 0; i < 45; i++) {
+        stars.push({
+          x: Math.random() * cw,
+          y: Math.random() * ch,
+          r: Math.random() * 1.8 + 0.6,
+          speed: Math.random() * 0.7 + 0.25,
+          alpha: Math.random() * 0.6 + 0.4
+        });
+      }
+    }
+
+    function resizeCanvas() {
+      const wrapper = document.getElementById('canvas-wrapper');
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cw = Math.max(200, rect.width);
+      ch = Math.max(100, rect.height);
+      canvas.width = cw * dpr;
+      canvas.height = ch * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (stars.length === 0) initStars();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 120));
+
+    function fireCanvasLaser(gainedScore) {
+      const shipX = cw * 0.18;
+      const shipY = ch * 0.56;
+      const monX = cw * 0.77;
+      const monY = ch * 0.54;
+
+      state.lasers.push({
+        x1: shipX + 20,
+        y1: shipY,
+        x2: monX,
+        y2: monY,
+        life: 1.0
+      });
+
+      state.monster.hitFlash = 1.0;
+
+      // 폭발 파티클 생성
+      const pColors = ['#38bdf8', '#fde047', '#f472b6', '#4ade80'];
+      for (let i = 0; i < 22; i++) {
+        const angle = (Math.PI * 2 * i) / 22;
+        const spd = Math.random() * 3.8 + 1.5;
+        state.particles.push({
+          x: monX,
+          y: monY,
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd,
+          r: Math.random() * 4 + 2,
+          color: pColors[i % pColors.length],
+          life: 1.0
+        });
+      }
+
+      // 떠오르는 점수 텍스트
+      state.floatingTexts.push({
+        x: monX,
+        y: monY - 15,
+        text: `+${gainedScore}점!`,
+        life: 1.0
+      });
+    }
+
+    function drawSpaceship(x, y, t) {
+      ctx.save();
+      ctx.translate(x, y + Math.sin(t * 0.005) * 4);
+
+      // 부스터 불꽃
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.ellipse(-26 - Math.random() * 6, 0, 10, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 날개
+      ctx.fillStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.moveTo(-12, -18);
+      ctx.lineTo(8, -6);
+      ctx.lineTo(-12, 18);
+      ctx.closePath();
+      ctx.fill();
+
+      // 동체
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 24, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 조종석 유리창
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.ellipse(6, -1, 8, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawMonster(x, y, t) {
+      const m = state.monster;
+      ctx.save();
+      const hoverY = Math.sin(t * 0.006) * 5;
+      const shakeX = m.hitFlash > 0 ? (Math.random() - 0.5) * 12 : 0;
+      ctx.translate(x + shakeX, y + hoverY);
+
+      const radius = m.isBoss ? Math.min(34, ch * 0.24) : Math.min(26, ch * 0.2);
+
+      // 그림자/오라
+      ctx.fillStyle = m.hitFlash > 0 ? 'rgba(255,255,255,0.85)' : m.color;
+      ctx.beginPath();
+
+      if (m.shape === 'boss') {
+        // 뿔 달린 우주 해적 보스
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.moveTo(-radius * 0.7, -radius * 0.6);
+        ctx.lineTo(-radius * 1.1, -radius * 1.25);
+        ctx.lineTo(-radius * 0.2, -radius * 0.85);
+        ctx.moveTo(radius * 0.7, -radius * 0.6);
+        ctx.lineTo(radius * 1.1, -radius * 1.25);
+        ctx.lineTo(radius * 0.2, -radius * 0.85);
+        ctx.fill();
+      } else if (m.shape === 'ufo') {
+        ctx.ellipse(0, 4, radius * 1.25, radius * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#67e8f9';
+        ctx.beginPath();
+        ctx.arc(0, -3, radius * 0.65, Math.PI, 0);
+        ctx.fill();
+      } else {
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 귀여운 눈 그리기
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-radius * 0.35, -2, radius * 0.24, 0, Math.PI * 2);
+      ctx.arc(radius * 0.35, -2, radius * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(-radius * 0.38, -2, radius * 0.12, 0, Math.PI * 2);
+      ctx.arc(radius * 0.32, -2, radius * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 입 모양
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      if (m.hitFlash > 0) {
+        ctx.arc(0, radius * 0.35, radius * 0.18, 0, Math.PI * 2);
+      } else {
+        ctx.arc(0, radius * 0.2, radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI);
+      }
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function animateCanvas(timestamp) {
+      ctx.clearRect(0, 0, cw, ch);
+
+      // 1. 배경 별빛 이동
+      for (const s of stars) {
+        s.x -= s.speed;
+        if (s.x < 0) {
+          s.x = cw;
+          s.y = Math.random() * ch;
+        }
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const shipX = cw * 0.18;
+      const shipY = ch * 0.58;
+      const monX = cw * 0.77;
+      const monY = ch * 0.56;
+
+      // 2. 레이저 빔
+      for (let i = state.lasers.length - 1; i >= 0; i--) {
+        const l = state.lasers[i];
+        ctx.save();
+        ctx.strokeStyle = `rgba(56, 189, 248, ${l.life})`;
+        ctx.lineWidth = 8 * l.life;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(254, 240, 138, ${l.life})`;
+        ctx.lineWidth = 3 * l.life;
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1);
+        ctx.lineTo(l.x2, l.y2);
+        ctx.stroke();
+        ctx.restore();
+
+        l.life -= 0.08;
+        if (l.life <= 0) state.lasers.splice(i, 1);
+      }
+
+      // 3. 우주선 & 몬스터
+      drawSpaceship(shipX, shipY, timestamp);
+      drawMonster(monX, monY, timestamp);
+      if (state.monster.hitFlash > 0) {
+        state.monster.hitFlash = Math.max(0, state.monster.hitFlash - 0.08);
+      }
+
+      // 4. 폭발 파티클
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.04;
+        if (p.life <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // 5. 플로팅 텍스트
+      for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = state.floatingTexts[i];
+        ft.y -= 0.8;
+        ft.life -= 0.03;
+        if (ft.life <= 0) {
+          state.floatingTexts.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.font = 'bold 16px Jua, sans-serif';
+        ctx.fillStyle = `rgba(253, 224, 71, ${ft.life})`;
+        ctx.textAlign = 'center';
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+
+      requestAnimationFrame(animateCanvas);
+    }
+
+    /*************************************************************************
+     * 10. 이벤트 리스너 바인딩 및 PWA 설치/다운로드 도우미
+     *************************************************************************/
+    function copyTextFallback(text, btnEl) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        const orig = btnEl.textContent;
+        btnEl.textContent = '복사 완료! ✅';
+        setTimeout(() => (btnEl.textContent = orig), 1500);
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    function downloadFile(filename, content) {
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const statusText = document.getElementById('install-status-text');
+      if (statusText) {
+        statusText.textContent = '✨ 현재 기기에 바로 앱으로 설치할 수 있습니다! 우측 [앱 바로 설치] 버튼을 눌러 주세요.';
+      }
+    });
+
+    function setupEvents() {
+      // 스테이지 선택 버튼
+      document.querySelectorAll('.stage-select-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const stg = Number(btn.dataset.stage || 1);
+          startStage(stg);
+        });
+      });
+
+      // 숫자 키패드 터치/클릭
+      document.querySelectorAll('.num-key').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          handleNumberInput(btn.dataset.num);
+        });
+      });
+
+      document.getElementById('btn-clear').addEventListener('click', clearInput);
+      document.getElementById('btn-fire').addEventListener('click', () => {
+        if (state.isLocked) {
+          proceedToNextQuestion();
+        } else {
+          checkAnswer();
+        }
+      });
+
+      // 정답 후 합치기 원리 무한 반복 중 [다음 문제 ▶] 버튼을 눌러야만 다음 문제로 이동!
+      el.btnSkipAnim.addEventListener('click', () => {
+        if (state.isLocked) {
+          proceedToNextQuestion();
+        }
+      });
+      el.btnPanelNext.addEventListener('click', () => {
+        if (state.isLocked) {
+          proceedToNextQuestion();
+        }
+      });
+
+      // [🔄 다시 보기] 버튼 클릭 시 합치기 애니메이션을 1단계부터 즉시 재시작
+      el.btnReplayAnim.addEventListener('click', restartMergeAnimationLoop);
+      el.btnPanelReplay.addEventListener('click', restartMergeAnimationLoop);
+
+      // 상단 문제 유형 빠른 전환 버튼 (일반 덧셈 <-> 등식 3+5=2+? <-> 혼합)
+      el.btnQtypeCycle.addEventListener('click', () => {
+        const order = ['stage', 'standard', 'balance', 'mixed'];
+        const nextIdx = (order.indexOf(state.questionModeFilter) + 1) % order.length;
+        state.questionModeFilter = order[nextIdx];
+        updateQtypeBadgeText();
+        generateProblem();
+        showFeedback(`문제 유형 변경: ${el.qtypeLabel.textContent} ✨`, 'cyan');
+      });
+
+      // 물리 키보드 입력 지원 (태블릿 키보드/PC 호환)
+      window.addEventListener('keydown', (e) => {
+        if (!el.startOverlay.classList.contains('hidden') || !el.pwaModal.classList.contains('hidden')) return;
+        if (state.isLocked && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          proceedToNextQuestion();
+          return;
+        }
+        if (e.key >= '0' && e.key <= '9') {
+          handleNumberInput(e.key);
+        } else if (e.key === 'Backspace' || e.key === 'Delete') {
+          clearInput();
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          checkAnswer();
+        }
+      });
+
+      // 홈으로 돌아가기
+      document.getElementById('btn-home').addEventListener('click', () => {
+        state.animToken += 1;
+        clearFlyingGems();
+        clearInterval(state.timerId);
+        el.startOverlay.classList.remove('hidden');
+      });
+
+      // 결과 모달 버튼
+      document.getElementById('btn-result-home').addEventListener('click', () => {
+        el.resultModal.classList.add('hidden');
+        el.startOverlay.classList.remove('hidden');
+      });
+      document.getElementById('btn-result-retry').addEventListener('click', () => {
+        startStage(state.stage);
+      });
+
+      // 자동 발사 ON/OFF 토글
+      el.btnAutofire.addEventListener('click', () => {
+        state.autoFire = !state.autoFire;
+        el.autofireText.textContent = state.autoFire ? '자동 발사 ON' : '수동 발사(🚀)';
+        el.autofireDot.className = state.autoFire
+          ? 'w-2 h-2 rounded-full bg-emerald-400'
+          : 'w-2 h-2 rounded-full bg-slate-400';
+      });
+
+      // 10-프레임 구슬 보이기/숨기기 토글
+      el.btnToggleVisual.addEventListener('click', () => {
+        state.visualAidOn = !state.visualAidOn;
+        el.visualAidContainer.classList.toggle('hidden', !state.visualAidOn);
+        el.btnToggleVisual.textContent = state.visualAidOn ? '구슬 ON' : '구슬 OFF';
+        setTimeout(resizeCanvas, 60);
+      });
+
+      // 같이 세기 도우미
+      el.btnCountHelper.addEventListener('click', playCountingHelper);
+
+      // 여유모드 / 스릴모드 토글
+      el.btnTimerToggle.addEventListener('click', () => {
+        state.timerMode = !state.timerMode;
+        if (state.timerMode) {
+          el.timerIcon.textContent = '⚡';
+          el.timerLabel.textContent = '스릴모드';
+          el.btnTimerToggle.className = 'arcade-btn px-2 sm:px-2.5 h-9 sm:h-10 rounded-xl text-xs sm:text-sm flex items-center gap-1 bg-rose-700/90 border border-rose-400 text-rose-100';
+          showFeedback('⚡ 스릴모드 ON! 제한 시간 안에 풀어 보세요!', 'amber');
+        } else {
+          el.timerIcon.textContent = '🐢';
+          el.timerLabel.textContent = '여유모드';
+          el.btnTimerToggle.className = 'arcade-btn px-2 sm:px-2.5 h-9 sm:h-10 rounded-xl text-xs sm:text-sm flex items-center gap-1 bg-emerald-700/90 border border-emerald-400/60 text-emerald-100';
+          showFeedback('🐢 여유모드 ON! 시간 제한 없이 천천히 구슬을 세어 보세요!', 'emerald');
+        }
+        resetQuestionTimer();
+      });
+
+      // 효과음 토글
+      el.btnSoundToggle.addEventListener('click', () => {
+        sound.enabled = !sound.enabled;
+        el.btnSoundToggle.textContent = sound.enabled ? '🔊' : '🔇';
+      });
+
+      // PWA 안내 및 파일 다운로드 모달
+      el.codeManifest.textContent = MANIFEST_JSON_CONTENT;
+      el.codeSw.textContent = SW_JS_CONTENT;
+
+      const openPwaModal = () => el.pwaModal.classList.remove('hidden');
+      const closePwaModal = () => el.pwaModal.classList.add('hidden');
+
+      document.getElementById('btn-pwa-info').addEventListener('click', openPwaModal);
+      document.getElementById('btn-install-app').addEventListener('click', openPwaModal);
+      document.getElementById('btn-open-pwa-files').addEventListener('click', openPwaModal);
+      document.getElementById('btn-close-pwa-modal').addEventListener('click', closePwaModal);
+
+      document.getElementById('btn-trigger-install').addEventListener('click', async () => {
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          await deferredInstallPrompt.userChoice;
+          deferredInstallPrompt = null;
+        } else {
+          const statusText = document.getElementById('install-status-text');
+          statusText.textContent = '💡 브라우저 메뉴의 [홈 화면에 추가] 또는 주소창 우측의 [앱 설치] 아이콘을 눌러 설치해 주세요!';
+          statusText.classList.add('text-amber-300');
+        }
+      });
+
+      document.getElementById('btn-copy-manifest').addEventListener('click', (e) =>
+        copyTextFallback(MANIFEST_JSON_CONTENT, e.currentTarget)
+      );
+      document.getElementById('btn-copy-sw').addEventListener('click', (e) =>
+        copyTextFallback(SW_JS_CONTENT, e.currentTarget)
+      );
+      document.getElementById('btn-dl-manifest').addEventListener('click', () =>
+        downloadFile('manifest.json', MANIFEST_JSON_CONTENT)
+      );
+      document.getElementById('btn-dl-sw').addEventListener('click', () =>
+        downloadFile('sw.js', SW_JS_CONTENT)
+      );
+    }
+
+    // 초기화 및 애니메이션 루프 시작
+    window.onload = function () {
+      buildTenFrameDOM();
+      setupEvents();
+      resizeCanvas();
+      renderEquationBar();
+      renderSeparatedVisuals(false);
+      updateTopHUD();
+      requestAnimationFrame(animateCanvas);
+    };
+  </script>
+</body>
+</html>
